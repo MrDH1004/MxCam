@@ -11,6 +11,21 @@ internal static class Program
         if (args.Length > 0 && args[0] == "--uitest")
             return RunUiTest(args.Length > 1 ? args[1] : Path.Combine(AppContext.BaseDirectory, "uitest.log"));
 
+        if (args.Length > 1 && args[0] == "--manualshots")
+        {
+            string sdir = Path.Combine(Path.GetTempPath(), "mxcam_manual_settings");
+            try { if (Directory.Exists(sdir)) Directory.Delete(sdir, true); } catch { }
+            Environment.SetEnvironmentVariable("MXCAM_SETTINGS_DIR", sdir);
+            var mf = new MainForm { TestMode = true };
+            mf.Shown += async (_, _) =>
+            {
+                try { await mf.CaptureManualShotsAsync(args[1]); }
+                finally { mf.MarkTestDone(); mf.Close(); }
+            };
+            Application.Run(mf);
+            return 0;
+        }
+
         if (args.Length > 0 && args[0] == "--updatecheck")
             return UpdateCheck(args.Length > 1 ? args[1] : Path.Combine(AppContext.BaseDirectory, "update.log"));
 

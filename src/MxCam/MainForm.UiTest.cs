@@ -448,6 +448,7 @@ public sealed partial class MainForm
     }
 
     bool _closingForTest, _testDone;
+    internal void MarkTestDone() => _testDone = true;
 
     static IntPtr SendHit(IntPtr hwnd, int x, int y) =>
         SendMessage(hwnd, Native.WM_NCHITTEST, IntPtr.Zero, (IntPtr)((y << 16) | (x & 0xFFFF)));

@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 
 namespace MxCam;
 
@@ -81,7 +81,7 @@ internal sealed class OptimizeForm : Form
                 : $"이 분류의 학습 데이터 {d.HistoryCount}건 → 후보 전체 탐색 (다음부터 빨라짐)");
             foreach (var t in d.Trials)
                 Log($"  {Codecs.Video(t.Kind).Label,-20} {t.Level:0.0}단계 → 예상 {t.MB,7:0.0} MB · 화질 {t.Ssim * 100:0.00}% · x{t.Speed:0.0}");
-            double srcMB = info.Size / 1_000_000.0;
+            double srcMB = info.Size / 1048576.0;
             var best = Codecs.Video(d.Kind);
             Log($"선택: {best.Label} {d.Level:0.0}단계 — 예상 {d.EstMB:0.0} MB (원본 {srcMB:0.0} MB, {(1 - d.EstMB / srcMB) * 100:0}% 감소), 화질 {d.Ssim * 100:0.00}%");
 
@@ -98,6 +98,7 @@ internal sealed class OptimizeForm : Form
             var sw = Stopwatch.StartNew();
             var bar = new Progress<double>(v =>
             {
+                if (Finished) return; // 완료 후 늦게 도착한 진행률은 무시
                 _bar.Value = (int)(v * 1000);
                 var eta = v > 0.02 ? TimeSpan.FromSeconds(sw.Elapsed.TotalSeconds / v * (1 - v)) : (TimeSpan?)null;
                 _status.Text = $"변환 중… {v * 100:0}%{(eta != null ? $" · 남은 시간 약 {eta:m\\:ss}" : "")}";

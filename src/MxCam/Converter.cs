@@ -227,7 +227,7 @@ public static class Converter
     public static SampleResult Sample(string ffmpeg, MediaInfo src, ConvertPlan p, CancellationToken ct)
     {
         if (p.Preset is ConvertPreset.Remux)
-            return new SampleResult(src.Size / 1_000_000.0, 1, 0, null);
+            return new SampleResult(src.Size / 1048576.0, 1, 0, null);
         double len = Math.Min(6, src.Duration);
         double start = Math.Max(0, src.Duration / 2 - len / 2);
         if (p.Preset == ConvertPreset.Gif) { start = 0; len = Math.Min(10, src.Duration); }
@@ -239,7 +239,7 @@ public static class Converter
             sw.Stop();
             ct.ThrowIfCancellationRequested();
             if (code != 0 || !File.Exists(tmp)) return new SampleResult(0, 0, 0, log.Trim().Split('\n').LastOrDefault());
-            double sampleMB = new FileInfo(tmp).Length / 1_000_000.0;
+            double sampleMB = new FileInfo(tmp).Length / 1048576.0;
             double total = p.Preset == ConvertPreset.Gif ? sampleMB : sampleMB / len * src.Duration;
             double ssim = 1;
             if (p.Preset != ConvertPreset.Mp3 && p.Preset != ConvertPreset.Gif && src.HasVideo)
@@ -280,7 +280,7 @@ public static class Converter
         {
             if (e.Data == null) return;
             if (e.Data.StartsWith("out_time_us=") && long.TryParse(e.Data[12..], out var us) && total > 0)
-                progress.Report(Math.Clamp(us / 1e6 / total, 0, 1));
+                progress.Report(Math.Clamp(us / 1048576.0 / total, 0, 1));
         };
         proc.ErrorDataReceived += (_, e) => { if (e.Data != null) lock (err) err.AppendLine(e.Data); };
         proc.BeginOutputReadLine();

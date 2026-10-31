@@ -9,7 +9,7 @@
     <RootNamespace>MxCam</RootNamespace>
     <AssemblyName>MxCam</AssemblyName>
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
-    <Version>1.1.0</Version>
+    <Version>1.1.1</Version>
     <Product>MxCam</Product>
     <Company>YMX</Company>
     <AssemblyTitle>MxCam 화면 녹화</AssemblyTitle>

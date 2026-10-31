@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>MxCam 사용 설명서</title>
+<style>
+  @page { size: A4; margin: 16mm 15mm 16mm 15mm; }
+  :root { --navy:#13284f; --blue:#1e5aa8; --sky:#e8f0fb; --red:#e62828; --green:#16a34a; --yellow:#f5c400; --gray:#5b6474; --line:#d9e0ea; }
+  * { box-sizing: border-box; }
+  body { font-family: "맑은 고딕","Malgun Gothic",sans-serif; color:#1d2433; font-size: 10.5pt; line-height: 1.6; margin:0; }
+  h1 { font-size: 22pt; color: var(--navy); margin: 0 0 4mm; }
+  h2 { font-size: 15pt; color: var(--navy); border-bottom: 3px solid var(--navy); padding-bottom: 2mm; margin: 0 0 5mm; display:flex; align-items:center; gap:3mm; }
+  h2 .no { background: var(--navy); color:#fff; border-radius: 50%; width: 9mm; height: 9mm; display:inline-flex; align-items:center; justify-content:center; font-size: 12pt; }
+  h3 { font-size: 12pt; color: var(--blue); margin: 5mm 0 2mm; }
+  p { margin: 1.5mm 0; }
+  section { page-break-before: always; }
+  .shot { border: 1px solid var(--line); border-radius: 2mm; box-shadow: 0 1mm 3mm rgba(19,40,79,.15); max-width: 100%; display:block; margin: 2mm auto; }
+  .cap { text-align:center; color: var(--gray); font-size: 9pt; margin-top: -1mm; }
+  .key { display:inline-block; min-width: 9mm; padding: .3mm 2mm; border: 1px solid #9aa6b8; border-bottom-width: 2.5px; border-radius: 1.5mm; background:#fff; font-weight: bold; font-size: 9.5pt; text-align:center; font-family: Consolas, monospace; }
+  .tip { background: #fff8db; border-left: 4px solid var(--yellow); padding: 2.5mm 4mm; border-radius: 1mm; margin: 3mm 0; }
+  .note { background: var(--sky); border-left: 4px solid var(--blue); padding: 2.5mm 4mm; border-radius: 1mm; margin: 3mm 0; }
+  .warn { background: #fdecec; border-left: 4px solid var(--red); padding: 2.5mm 4mm; border-radius: 1mm; margin: 3mm 0; }
+  table { border-collapse: collapse; width: 100%; margin: 2mm 0; font-size: 9.8pt; }
+  th, td { border: 1px solid var(--line); padding: 1.6mm 2.5mm; vertical-align: top; text-align:left; }
+  th { background: var(--navy); color:#fff; font-weight: bold; }
+  tr:nth-child(even) td { background: #f6f8fb; }
+  .steps { display:flex; gap: 4mm; margin: 4mm 0; }
+  .step { flex:1; border: 2px solid var(--line); border-radius: 3mm; padding: 4mm; text-align:center; }
+  .step .n { width: 10mm; height: 10mm; border-radius: 50%; background: var(--red); color:#fff; font-weight:bold; font-size: 13pt; display:flex; align-items:center; justify-content:center; margin: 0 auto 2mm; }
+  .step b { display:block; font-size: 11.5pt; color: var(--navy); margin-bottom: 1mm; }
+  .two { display:flex; gap: 6mm; align-items:flex-start; }
+  .two > div { flex: 1; }
+  .callout-wrap { position: relative; margin: 4mm auto 2mm; width: 100%; }
+  .callout-wrap img { width: 100%; }
+  .badge { position:absolute; transform: translate(-50%, -50%); width: 6.5mm; height: 6.5mm; border-radius: 50%; background: var(--red); color:#fff; font-size: 9pt; font-weight:bold; display:flex; align-items:center; justify-content:center; border: 2px solid #fff; box-shadow: 0 .5mm 1mm rgba(0,0,0,.3); }
+  /* 표지 */
+  .cover { height: 260mm; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center;
+           background: linear-gradient(160deg, #13284f 0%, #1e5aa8 70%, #3b8be0 100%); color:#fff; border-radius: 4mm; }
+  .cover img { width: 46mm; height: 46mm; background:#fff; border-radius: 10mm; padding: 3mm; box-shadow: 0 2mm 6mm rgba(0,0,0,.35); }
+  .cover h1 { color:#fff; font-size: 34pt; margin: 8mm 0 2mm; letter-spacing: 1px; }
+  .cover .sub { font-size: 14pt; opacity: .95; }
+  .cover .ver { margin-top: 14mm; font-size: 11pt; opacity: .85; }
+  .cover .feat { margin-top: 10mm; display:flex; gap: 4mm; }
+  .cover .feat span { background: rgba(255,255,255,.15); border: 1px solid rgba(255,255,255,.35); border-radius: 10mm; padding: 1.5mm 5mm; font-size: 10.5pt; }
+  .toc { columns: 2; column-gap: 10mm; margin-top: 4mm; }
+  .toc div { break-inside: avoid; padding: 2mm 0; border-bottom: 1px dashed var(--line); display:flex; gap: 3mm; }
+  .toc .n { color: var(--red); font-weight: bold; width: 6mm; }
+  .desk { position: relative; background: linear-gradient(135deg,#dfe7f3,#c7d4e8); border-radius: 2mm; padding: 6mm; }
+  .desk img { display:block; margin: 0 auto; }
+  .ctx { width: 74mm; border: 1px solid #c9cfd8; border-radius: 2mm; background:#fff; box-shadow: 0 1.5mm 4mm rgba(0,0,0,.2); font-size: 9.5pt; padding: 1mm 0; }
+  .ctx div { padding: 1.4mm 4mm; }
+  .ctx .sep { border-top: 1px solid #e3e7ee; padding: 0; margin: 1mm 0; }
+  .ctx .hl { background: #e5efff; font-weight: bold; color: var(--navy); }
+  .ctx .dim { color: #8a93a3; }
+  .big { font-size: 12pt; }
+  .small { font-size: 9pt; color: var(--gray); }
+</style>
+</head>
+<body>
+
+<!-- 표지 -->
+<div class="cover">
+  <img src="img/icon.png" alt="">
+  <h1>MxCam 사용 설명서</h1>
+  <div class="sub">광고 없는 화면 녹화 · 동영상 용량 최적화</div>
+  <div class="feat"><span>🎥 화면 녹화</span><span>⚡ 자동 코덱 추천</span><span>📦 용량 최적화</span><span>🧠 자가 학습</span></div>
+  <div class="ver">버전 1.1 · github.com/MrDH1004/MxCam</div>
+</div>
+
+<section>
+  <h2>목차</h2>
+  <div class="toc">
+    <div><span class="n">1</span>설치와 자동 업데이트</div>
+    <div><span class="n">2</span>화면 구성 한눈에 보기</div>
+    <div><span class="n">3</span>3단계로 녹화하기</div>
+    <div><span class="n">4</span>녹화 영역 · 소리 · 모드</div>
+    <div><span class="n">5</span>코덱과 품질 5단계</div>
+    <div><span class="n">6</span>코덱 추천 (실측)</div>
+    <div><span class="n">7</span>동영상 변환</div>
+    <div><span class="n">8</span>우클릭 용량 최적화 · 자가 학습</div>
+    <div><span class="n">9</span>옵션</div>
+    <div><span class="n">10</span>문제 해결 · 단축키 요약</div>
+  </div>
+
+  <h2 style="margin-top:10mm"><span class="no">1</span>설치와 자동 업데이트</h2>
+  <div class="steps">
+    <div class="step"><div class="n">1</div><b>설치 파일 받기</b>GitHub 릴리스에서<br><b style="display:inline;font-size:10pt">MxCam-Setup-x.y.z.exe</b></div>
+    <div class="step"><div class="n">2</div><b>설치</b>관리자 권한 없이 설치됩니다<br><span class="small">(시작 메뉴 · 바탕화면 바로가기)</span></div>
+    <div class="step"><div class="n">3</div><b>끝!</b>새 버전은 시작할 때<br>자동으로 받아 설치합니다</div>
+  </div>
+  <table>
+    <tr><th style="width:28%">필요한 것</th><th>설치 방법</th></tr>
+    <tr><td>Windows 10 (2004 이상) / 11, 64비트</td><td>—</td></tr>
+    <tr><td>.NET 9 데스크톱 런타임</td><td>없으면 첫 실행 때 안내 창이 뜹니다 → [다운로드] 눌러 설치</td></tr>
+    <tr><td>ffmpeg (인코더)</td><td>명령 프롬프트에서 <span class="key">winget install Gyan.FFmpeg</span><br><span class="small">또는 ffmpeg.exe를 MxCam.exe와 같은 폴더에 두기</span></td></tr>
+  </table>
+  <div class="note"><b>자동 업데이트</b> — MxCam을 켤 때 새 버전을 확인하고 몰래(백그라운드) 받아 둡니다. 상태 줄에 <b style="color:var(--green)">🔄 업데이트 준비됨</b>이 보이면 눌러서 바로 적용하거나, 다음에 켤 때 자동 적용됩니다. 내려받은 파일은 SHA256으로 검증합니다. 옵션에서 끌 수 있습니다.</div>
+  <div class="tip"><b>포터블 버전</b> — 설치 없이 쓰려면 <b>MxCam.exe</b>만 받아 실행하세요. 포터블도 자동 업데이트됩니다.</div>
+</section>
+
+<section>
+  <h2><span class="no">2</span>화면 구성 한눈에 보기</h2>
+  <div class="callout-wrap">
+    <img class="shot" src="img/main.png" alt="">
+    <span class="badge" style="left:8.9%;top:33%">1</span>
+    <span class="badge" style="left:17.4%;top:33%">2</span>
+    <span class="badge" style="left:25.1%;top:33%">3</span>
+    <span class="badge" style="left:33.7%;top:33%">4</span>
+    <span class="badge" style="left:43.2%;top:33%">5</span>
+    <span class="badge" style="left:52.3%;top:33%">6</span>
+    <span class="badge" style="left:61.6%;top:33%">7</span>
+    <span class="badge" style="left:70.7%;top:33%">8</span>
+    <span class="badge" style="left:79.7%;top:33%">9</span>
+    <span class="badge" style="left:88.0%;top:33%">10</span>
+    <span class="badge" style="left:96.2%;top:33%">11</span>
+    <span class="badge" style="left:3%;top:72%">A</span>
+    <span class="badge" style="left:3%;top:89%">B</span>
+  </div>
+  <table>
+    <tr><th style="width:7%">번호</th><th style="width:18%">버튼</th><th>하는 일</th></tr>
+    <tr><td>1</td><td>녹화 <span class="key">F2</span></td><td>녹화 시작 / 중지. 녹화 중에는 [중지]로 바뀝니다.</td></tr>
+    <tr><td>2</td><td>일시정지 <span class="key">F3</span></td><td>잠시 멈춤 / 재개. 멈춘 부분은 빠지고 <b>한 파일로 이어집니다</b>.</td></tr>
+    <tr><td>3</td><td>캡처 <span class="key">F11</span></td><td>녹화 영역을 사진(PNG)으로 저장. 녹화 중에도 됩니다.</td></tr>
+    <tr><td>4</td><td>크기 조정</td><td>전체 화면, 창 선택, 정해진 크기(1280×720 등), 사용자 지정 크기</td></tr>
+    <tr><td>5</td><td>열기</td><td>저장 폴더 열기 (기본: 내 비디오\MxCam)</td></tr>
+    <tr><td>6</td><td>코덱</td><td>저장 형식 선택. <b>자동(추천)</b>이 기본 — 5장 참고</td></tr>
+    <tr><td>7</td><td>소리</td><td>시스템 소리 / 마이크 / 소리 없음</td></tr>
+    <tr><td>8</td><td>모드</td><td>화면 녹화 · 소리만 녹음 · GIF 움짤</td></tr>
+    <tr><td>9</td><td>변환</td><td>가지고 있는 동영상을 작은 용량으로 변환 — 7장</td></tr>
+    <tr><td>10</td><td>추천</td><td>내 PC에 가장 효율 좋은 코덱 실측 — 6장</td></tr>
+    <tr><td>11</td><td>옵션</td><td>FPS, 단축키, 워터마크 등 — 9장</td></tr>
+    <tr><td>A</td><td>안내 줄</td><td>소리 상태 · 예상 용량(MB/분) · 💡 더 좋은 코덱 추천. 누르면 추천 창이 열립니다.</td></tr>
+    <tr><td>B</td><td>상태 줄</td><td>녹화 시간 · 파일 크기 · 해상도 · 사용 코덱. 저장 후 파일 이름을 누르면 폴더가 열립니다.</td></tr>
+  </table>
+  <div class="tip">툴바와 초록 테두리는 <b>녹화 영상에 찍히지 않습니다.</b> 전체 화면 녹화 때도 그대로 두셔도 됩니다.</div>
+</section>
+
+<section>
+  <h2><span class="no">3</span>3단계로 녹화하기</h2>
+  <div class="steps">
+    <div class="step"><div class="n">1</div><b>영역 맞추기</b>초록 테두리의 모서리를 끌어 크기 조절,<br>가운데 크기 표시를 끌어 이동</div>
+    <div class="step"><div class="n">2</div><b>녹화 시작</b><span class="key">F2</span> 또는 [녹화]<br><span class="small">테두리가 빨간색으로 바뀜</span></div>
+    <div class="step"><div class="n">3</div><b>녹화 끝</b><span class="key">F2</span> 또는 [중지]<br><span class="small">저장 폴더에 자동 저장</span></div>
+  </div>
+  <div class="two">
+    <div>
+      <h3>녹화 영역 테두리</h3>
+      <div class="desk"><img src="img/frame.png" style="width:100%" alt=""></div>
+      <p class="cap">모서리·변 = 크기 조절 / 가운데 = 이동</p>
+    </div>
+    <div>
+      <h3>테두리 색 = 상태</h3>
+      <table>
+        <tr><td style="width:22%"><span style="color:#22c55e;font-weight:bold">■ 초록</span></td><td>대기 (영역 조절 가능)</td></tr>
+        <tr><td><span style="color:#ef4444;font-weight:bold">■ 빨강</span></td><td>녹화 중 (영역 고정)</td></tr>
+        <tr><td><span style="color:#f59e0b;font-weight:bold">■ 주황</span></td><td>일시정지</td></tr>
+      </table>
+      <h3>녹화 중 화면</h3>
+      <img class="shot" src="img/main_recording.png" alt="">
+      <p class="cap">녹화 시간과 파일 크기가 실시간으로 표시됩니다</p>
+    </div>
+  </div>
+  <div class="note">파일 이름은 <b>MxCam_날짜_시간.mp4</b> 형식입니다. 접두어는 옵션에서 바꿀 수 있습니다.</div>
+</section>
+
+<section>
+  <h2><span class="no">4</span>녹화 영역 · 소리 · 모드</h2>
+  <div class="two">
+    <div>
+      <h3>크기 조정</h3>
+      <img class="shot" src="img/menu_size.png" alt="">
+      <p><b>녹화 대상 창 찾기</b> — 화면이 어두워지면 녹화할 창을 클릭하세요. 그 창 크기에 딱 맞춰집니다. (<span class="key">Esc</span> 취소)</p>
+    </div>
+    <div>
+      <h3>소리</h3>
+      <img class="shot" src="img/menu_sound.png" alt="">
+      <p><b>시스템 소리</b> = 스피커로 나오는 소리 (유튜브·게임 등)<br><b>마이크</b> = 내 목소리. 둘 다 켜면 섞어서 녹음합니다.</p>
+      <h3>모드</h3>
+      <img class="shot" src="img/menu_mode.png" alt="">
+      <p><b>소리만 녹음</b> — MP3·WMA·AAC·FLAC·WAV<br><b>GIF</b> — 짧은 움짤 (품질 단계에 따라 크기·FPS 자동)</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2><span class="no">5</span>코덱과 품질 5단계</h2>
+  <div class="two">
+    <div style="flex:0 0 36%">
+      <img class="shot" src="img/menu_codec.png" alt="">
+      <p class="cap">코덱 메뉴</p>
+    </div>
+    <div>
+      <p class="big"><b>잘 모르겠으면 그냥 "자동 (추천)"</b>을 쓰세요.</p>
+      <p>내 PC에서 <b>같은 화질일 때 용량이 가장 작은 코덱</b>을 자동으로 고르고, 품질값까지 맞춥니다. (예: NVIDIA 그래픽카드 → NVENC HEVC)</p>
+      <table>
+        <tr><th style="width:30%">품질 단계</th><th>이럴 때</th></tr>
+        <tr><td>1 · 최소 용량</td><td>오래 녹화, 저장공간 부족</td></tr>
+        <tr><td>2 · 작은 용량</td><td>강의·회의 녹화</td></tr>
+        <tr><td><b>3 · 표준 (권장)</b></td><td>대부분의 경우</td></tr>
+        <tr><td>4 · 고화질</td><td>게임, 작은 글씨</td></tr>
+        <tr><td>5 · 최고 화질</td><td>편집용 원본</td></tr>
+      </table>
+    </div>
+  </div>
+  <h3>형식별 코덱 (예: MP4)</h3>
+  <img class="shot" src="img/menu_codec_sub.png" alt="" style="max-width:80%">
+  <p>각 항목 옆 <b>용량효율 ★</b>이 많을수록 같은 화질에서 파일이 작습니다. <b>★추천</b> 표시가 내 PC의 최적 코덱이고, 이 PC에서 쓸 수 없는 코덱은 회색으로 표시됩니다.</p>
+  <div class="tip">다른 코덱을 고르면 안내 줄에 <b>💡 ○○로 바꾸면 같은 화질에 약 N% 작아짐</b>처럼 알려 줍니다.</div>
+</section>
+
+<section>
+  <h2><span class="no">6</span>코덱 추천 (실측)</h2>
+  <img class="shot" src="img/recommend.png" alt="">
+  <p class="cap">[추천] 버튼 → 코덱 추천 창</p>
+  <div class="steps">
+    <div class="step"><div class="n">1</div><b>평소 화면 띄우기</b>게임·영상·문서 등<br>평소 녹화할 화면</div>
+    <div class="step"><div class="n">2</div><b>[실측 테스트]</b>4초 녹화 후 코덱별로<br>용량·화질·속도 측정 (약 30초)</div>
+    <div class="step"><div class="n">3</div><b>[추천 코덱으로 자동 설정]</b>자동 모드가 측정 결과를<br>바탕으로 녹화</div>
+  </div>
+  <table>
+    <tr><th style="width:24%">열</th><th>뜻</th></tr>
+    <tr><td>실측 화질</td><td>원본과 얼마나 같은지 (100% = 원본과 동일, 97% 이상이면 눈으로 구분 어려움)</td></tr>
+    <tr><td>같은 화질 환산</td><td>모든 코덱을 같은 화질로 맞췄을 때의 용량 — <b>이 값이 가장 작은 코덱이 추천</b>됩니다</td></tr>
+    <tr><td>실측 속도</td><td>실시간 대비 인코딩 속도 (x1.25 이상이어야 끊김 없이 녹화)</td></tr>
+  </table>
+</section>
+
+<section>
+  <h2><span class="no">7</span>동영상 변환</h2>
+  <div class="two">
+    <div style="flex:0 0 58%"><img class="shot" src="img/convert.png" alt=""></div>
+    <div>
+      <p><b>[변환]</b> 버튼 → 동영상을 <b>끌어다 놓거나</b> [파일 선택]</p>
+      <ol style="padding-left:5mm">
+        <li>원본을 분석해 <b>형식을 자동 추천</b></li>
+        <li>가운데 6초를 미리 변환해 <b>예상 용량·화질·시간</b> 표시</li>
+        <li><b>[추천 형식으로 변환]</b> 클릭 → 완료!</li>
+      </ol>
+      <p class="small">원본은 절대 지우거나 덮어쓰지 않습니다. 결과는 같은 폴더에 <b>원본이름_MxCam.mp4</b>로 저장됩니다.</p>
+    </div>
+  </div>
+  <table>
+    <tr><th style="width:36%">변환 형식</th><th>언제</th></tr>
+    <tr><td>★ 추천 (용량↓ 화질 유지)</td><td>대부분 — 이 PC의 최적 코덱으로</td></tr>
+    <tr><td>호환성 최우선 (H.264)</td><td>오래된 TV·폰에서도 재생해야 할 때</td></tr>
+    <tr><td>웹·메신저 공유용 (720p)</td><td>카톡·메일로 보낼 때</td></tr>
+    <tr><td>고효율 HEVC / 최소 용량 AV1</td><td>보관용으로 최대한 작게</td></tr>
+    <tr><td>MP4로 포장만 변경</td><td>MKV 등을 화질 손실 없이 MP4로 (몇 초 만에 끝)</td></tr>
+    <tr><td>움짤 GIF / 소리만 MP3</td><td>앞 10초 움짤, 음악 추출</td></tr>
+  </table>
+  <div class="note">이미 충분히 압축된 영상이면 "변환할 필요 없음"으로 알려 줍니다. 다시 인코딩하면 화질만 떨어지기 때문입니다.</div>
+</section>
+
+<section>
+  <h2><span class="no">8</span>우클릭 용량 최적화 · 자가 학습</h2>
+  <div class="two">
+    <div>
+      <h3>탐색기에서 바로</h3>
+      <div class="desk">
+        <div class="ctx">
+          <div class="dim">열기</div>
+          <div class="dim">연결 프로그램</div>
+          <div class="sep"></div>
+          <div class="hl">🎬 MxCam: 용량 최적화 변환</div>
+          <div>🎬 MxCam: 변환 옵션…</div>
+          <div class="sep"></div>
+          <div class="dim">속성</div>
+        </div>
+      </div>
+      <p>동영상 파일을 <b>우클릭 → MxCam: 용량 최적화 변환</b> — 끝. 나머지는 알아서 합니다.</p>
+      <div class="warn"><b>Windows 11</b>은 우클릭 후 <b>"추가 옵션 표시"</b> (또는 <span class="key">Shift</span>+우클릭) 안에 있습니다.</div>
+    </div>
+    <div>
+      <h3>스스로 배우는 최적화</h3>
+      <ol style="padding-left:5mm">
+        <li>영상 가운데 6초로 여러 코덱·품질값을 <b>직접 시험</b></li>
+        <li>목표 화질(3단계 = 원본의 97.5%)을 지키면서 <b>가장 작은 설정</b> 선택</li>
+        <li>결과를 <b>학습</b> → 비슷한 영상은 다음부터 잘 맞았던 설정부터 시험해서 <b>더 빠르게</b></li>
+        <li>가끔 다른 후보도 시험해 더 좋은 방법을 계속 찾음</li>
+      </ol>
+      <table>
+        <tr><th>예시 (1080p 10초)</th><th>1회차</th><th>2회차</th></tr>
+        <tr><td>시험 횟수</td><td>16회</td><td><b>5회</b></td></tr>
+        <tr><td>걸린 시간</td><td>30초</td><td><b>10초</b></td></tr>
+        <tr><td>결과 용량</td><td colspan="2">17.3 MB → <b>2.0 MB</b> (화질 98%)</td></tr>
+      </table>
+    </div>
+  </div>
+  <img class="shot" src="img/optimize.png" alt="" style="max-width:82%">
+  <p class="cap">최적화 창 — 시험한 후보와 결과가 모두 표시됩니다</p>
+</section>
+
+<section>
+  <h2><span class="no">9</span>옵션</h2>
+  <div class="two">
+    <div style="flex:0 0 46%"><img class="shot" src="img/options.png" alt=""></div>
+    <div>
+      <table>
+        <tr><th style="width:34%">항목</th><th>설명 (기본값)</th></tr>
+        <tr><td>저장 폴더 · 파일 이름</td><td>저장 위치와 접두어 (내 비디오\MxCam, MxCam_날짜_시간)</td></tr>
+        <tr><td>캡처 이미지 형식</td><td>PNG / JPG / BMP (PNG)</td></tr>
+        <tr><td>녹화 중 최소화</td><td>녹화하면 MxCam 창을 숨김 (끔)</td></tr>
+        <tr><td>자동 업데이트</td><td>시작할 때 새 버전 확인·설치 (켬)</td></tr>
+        <tr><td>우클릭 메뉴</td><td>비디오 파일 우클릭 메뉴 (켬)</td></tr>
+        <tr><td>FPS</td><td>초당 프레임 1~60 (30)</td></tr>
+        <tr><td>품질 단계</td><td>1~5단계 (3 · 표준)</td></tr>
+        <tr><td>커서 포함</td><td>마우스 커서도 녹화 (켬)</td></tr>
+        <tr><td>샘플레이트 · 채널</td><td>48000 Hz · 스테레오</td></tr>
+        <tr><td>마우스 클릭 효과</td><td>클릭할 때 노랑/파랑 원 (끔)</td></tr>
+        <tr><td>워터마크</td><td>PNG 로고를 영상 모서리에 (불투명도·위치)</td></tr>
+        <tr><td>녹화 시간 제한</td><td>N분 N초 뒤 자동 중지 → 아무것도 안 함 / 새 녹화 / 프로그램 종료 / 시스템 종료</td></tr>
+        <tr><td>단축키</td><td>녹화 F2 · 일시정지 F3 · 캡처 F11</td></tr>
+      </table>
+      <p class="small">[기본값으로 되돌리기]를 누르면 위의 기본값으로 돌아갑니다.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2><span class="no">10</span>문제 해결</h2>
+  <table>
+    <tr><th style="width:34%">증상</th><th>해결</th></tr>
+    <tr><td>단축키(F2 등)가 안 됨</td><td>다른 녹화 프로그램(oCam, 반디캠 등)이 같은 키를 쓰고 있습니다. 그 프로그램을 트레이에서 종료하거나, MxCam 옵션에서 단축키를 바꾸세요. 상태 줄에 "단축키 등록 실패"가 표시됩니다.</td></tr>
+    <tr><td>"ffmpeg를 찾을 수 없음"</td><td><span class="key">winget install Gyan.FFmpeg</span> 실행 후 MxCam 재시작. 또는 옵션 → ffmpeg 경로 지정.</td></tr>
+    <tr><td>소리가 녹음 안 됨</td><td>[소리] 메뉴에서 시스템 소리/마이크가 켜져 있는지 확인. 마이크는 [마이크 장치]에서 장치 선택.</td></tr>
+    <tr><td>영상이 끊김</td><td>FPS를 낮추거나(30), 녹화 영역을 줄이거나, [추천]에서 GPU 코덱(NVENC/QSV/AMF) 사용.</td></tr>
+    <tr><td>용량이 너무 큼</td><td>코덱을 "자동 (추천)"으로, 품질 단계를 2~3으로. 이미 녹화한 파일은 우클릭 → 용량 최적화.</td></tr>
+    <tr><td>우클릭 메뉴가 안 보임</td><td>Windows 11: "추가 옵션 표시" 안을 보세요. 옵션의 우클릭 메뉴가 켜져 있는지 확인 후 MxCam을 한 번 실행.</td></tr>
+    <tr><td>재생이 안 되는 파일</td><td>HEVC/AV1은 일부 오래된 플레이어에서 안 열릴 수 있습니다. 변환 → "호환성 최우선 (H.264)".</td></tr>
+  </table>
+
+  <h2 style="margin-top:8mm">단축키 요약</h2>
+  <div class="steps">
+    <div class="step"><div class="n" style="background:var(--navy)">F2</div><b>녹화 / 중지</b></div>
+    <div class="step"><div class="n" style="background:var(--navy)">F3</div><b>일시정지 / 재개</b></div>
+    <div class="step"><div class="n" style="background:var(--navy);font-size:11pt">F11</div><b>화면 캡처</b></div>
+  </div>
+  <p class="small" style="text-align:center;margin-top:8mm">MxCam · https://github.com/MrDH1004/MxCam · 문의/버그: GitHub Issues</p>
+</section>
+
+</body>
+</html>

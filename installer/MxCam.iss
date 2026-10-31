@@ -1,4 +1,4 @@
-; MxCam 설치 파일 (Inno Setup 6)
+﻿; MxCam 설치 파일 (Inno Setup 6)
 ; 빌드: ISCC /DMyAppVersion=1.2.3 /DSourceExe=out\MxCam.exe installer\MxCam.iss
 ; 사용자 계정 설치(관리자 권한 불필요) → 자동 업데이트가 UAC 없이 동작
 
@@ -7,6 +7,9 @@
 #endif
 #ifndef SourceExe
   #define SourceExe "..\dist\MxCam.exe"
+#endif
+#ifndef ManualPdf
+  #define ManualPdf "..\docs\MxCam-사용설명서.pdf"
 #endif
 #ifndef OutputDir
   #define OutputDir "..\out"
@@ -48,9 +51,11 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 
 [Files]
 Source: "{#SourceExe}"; DestDir: "{app}"; DestName: "MxCam.exe"; Flags: ignoreversion
+Source: "{#ManualPdf}"; DestDir: "{app}"; DestName: "MxCam 사용 설명서.pdf"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\MxCam"; Filename: "{app}\MxCam.exe"
+Name: "{group}\MxCam 사용 설명서"; Filename: "{app}\MxCam 사용 설명서.pdf"
 Name: "{group}\{cm:UninstallProgram,MxCam}"; Filename: "{uninstallexe}"
 Name: "{userdesktop}\MxCam"; Filename: "{app}\MxCam.exe"; Tasks: desktopicon
 

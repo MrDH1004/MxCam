@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 
 namespace MxCam;
 
@@ -129,7 +129,7 @@ public static class Optimizer
 
         var trials = new List<Trial>();
         var newRecords = new List<LearnRecord>();
-        double srcMB = src.Size / 1_000_000.0;
+        double srcMB = src.Size / 1048576.0;
         int idx = 0;
         foreach (var kind in toTest)
         {

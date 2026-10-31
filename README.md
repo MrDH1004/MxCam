@@ -28,7 +28,7 @@
 - 단축키 기본값: 녹화 `F2`, 일시정지 `F3`, 캡처 `F11`
 - 녹화 영역 테두리와 툴바는 영상에 찍히지 않음
 
-벤치마크: [docs/benchmark.md](docs/benchmark.md)
+사용 설명서(PDF): [docs/MxCam-사용설명서.pdf](docs/MxCam-사용설명서.pdf) · 벤치마크: [docs/benchmark.md](docs/benchmark.md)
 
 ## 빌드
 

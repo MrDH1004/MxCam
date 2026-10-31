@@ -18,7 +18,7 @@ internal sealed class ConvertForm : Form
     readonly TrackBar _level = new() { Minimum = 1, Maximum = 5, Width = 200, TickStyle = TickStyle.BottomRight, LargeChange = 1 };
     readonly Label _levelName = new() { AutoSize = true, Margin = new Padding(6, 12, 3, 3) };
     readonly Label _reason = new() { AutoSize = false, Height = 64, Dock = DockStyle.Top, Padding = new Padding(4, 4, 4, 0), ForeColor = Color.FromArgb(30, 90, 170) };
-    readonly Label _estimate = new() { AutoSize = false, Height = 40, Dock = DockStyle.Top, Padding = new Padding(4, 2, 4, 0), Font = new Font("맑은 고딕", 9.5f, FontStyle.Bold) };
+    readonly Label _estimate = new() { AutoSize = false, Height = 62, Dock = DockStyle.Top, Padding = new Padding(4, 2, 4, 0), Font = new Font("맑은 고딕", 9.5f, FontStyle.Bold) };
     readonly TextBox _out = new() { Width = 470 };
     readonly CheckBox _autoStart = new() { Text = "분석이 끝나면 추천대로 바로 변환", AutoSize = true };
     readonly ProgressBar _bar = new() { Dock = DockStyle.Bottom, Height = 18 };
@@ -43,7 +43,7 @@ internal sealed class ConvertForm : Form
         _ffmpeg = ffmpeg;
         Text = "MxCam - 동영상 변환 (포맷 추천)";
         StartPosition = FormStartPosition.CenterScreen;
-        Size = new Size(720, 470);
+        Size = new Size(760, 500);
         MinimumSize = new Size(680, 440);
         Font = new Font("맑은 고딕", 9f);
         AllowDrop = true;
@@ -170,7 +170,7 @@ internal sealed class ConvertForm : Form
             }
             else
             {
-                double srcMB = info.Size / 1_000_000.0;
+                double srcMB = info.Size / 1048576.0;
                 double pct = (1 - r.EstimatedMB / srcMB) * 100;
                 string size = pct >= 0 ? $"{pct:0}% 작아짐" : $"{-pct:0}% 커짐";
                 string quality = plan.Preset is ConvertPreset.Mp3 or ConvertPreset.Gif ? "" :
@@ -205,6 +205,7 @@ internal sealed class ConvertForm : Form
         var sw = System.Diagnostics.Stopwatch.StartNew();
         var progress = new Progress<double>(v =>
         {
+            if (_convertCts == null) return; // 완료 후 늦게 도착한 진행률은 무시
             _bar.Value = (int)(v * 1000 / 10);
             var eta = v > 0.02 ? TimeSpan.FromSeconds(sw.Elapsed.TotalSeconds / v * (1 - v)) : (TimeSpan?)null;
             _status.Text = $"변환 중… {v * 100:0}%{(eta != null ? $" · 남은 시간 약 {eta:m\\:ss}" : "")}";

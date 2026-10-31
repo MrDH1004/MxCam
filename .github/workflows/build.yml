@@ -48,6 +48,10 @@ jobs:
           & $iscc /Qp "/DMyAppVersion=${{ steps.ver.outputs.version }}" "/DSourceExe=$PWD\out\MxCam.exe" "/DOutputDir=$PWD\out" installer\MxCam.iss
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+      - name: Manual
+        shell: pwsh
+        run: Copy-Item (Get-ChildItem docs -Filter *.pdf | Select-Object -First 1).FullName out/MxCam-Manual-ko.pdf
+
       - name: Checksums
         shell: pwsh
         run: |
