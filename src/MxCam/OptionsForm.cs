@@ -13,6 +13,7 @@ internal sealed class OptionsForm : Form
     readonly CheckBox _minimize = Check("녹화 중에는 메인 창 최소화");
     readonly CheckBox _attach = Check("녹화 영역 이동 시 메인 창도 같이 이동");
     readonly CheckBox _autoUpdate = Check("시작할 때 새 버전 자동 확인·업데이트");
+    readonly CheckBox _autoLearn = Check("코덱 자가 학습: 녹화 후 백그라운드에서 학습 → 자동 모드·변환 추천에 반영");
     readonly CheckBox _shellMenu = Check("탐색기 우클릭 메뉴: 비디오 파일 \"MxCam: 용량 최적화 변환\"");
     // 비디오
     readonly NumericUpDown _fps = new() { Minimum = 1, Maximum = 60, Width = 70 };
@@ -104,6 +105,7 @@ internal sealed class OptionsForm : Form
         Row("", _attach);
         Row("", _autoUpdate);
         Row("", _shellMenu);
+        Row("", _autoLearn);
 
         Section("비디오");
         Row("초당 프레임 (FPS)", _fps);
@@ -164,6 +166,7 @@ internal sealed class OptionsForm : Form
         _attach.Checked = s.AttachToolbar;
         _autoUpdate.Checked = s.AutoUpdate;
         _shellMenu.Checked = s.ShellMenu;
+        _autoLearn.Checked = s.AutoLearn;
         _fps.Value = Math.Clamp(s.Fps, 1, 60);
         _level.SelectedIndex = Math.Clamp(s.Level, 1, 5) - 1;
         _cursor.Checked = s.RecordCursor;
@@ -193,6 +196,7 @@ internal sealed class OptionsForm : Form
         _s.AttachToolbar = _attach.Checked;
         _s.AutoUpdate = _autoUpdate.Checked;
         _s.ShellMenu = _shellMenu.Checked;
+        _s.AutoLearn = _autoLearn.Checked;
         _s.Fps = (int)_fps.Value;
         _s.Level = _level.SelectedIndex + 1;
         _s.RecordCursor = _cursor.Checked;

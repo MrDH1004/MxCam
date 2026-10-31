@@ -75,11 +75,12 @@
     <div><span class="n">3</span>3단계로 녹화하기</div>
     <div><span class="n">4</span>녹화 영역 · 소리 · 모드</div>
     <div><span class="n">5</span>코덱과 품질 5단계</div>
-    <div><span class="n">6</span>코덱 추천 (실측)</div>
-    <div><span class="n">7</span>동영상 변환</div>
-    <div><span class="n">8</span>우클릭 용량 최적화 · 자가 학습</div>
-    <div><span class="n">9</span>옵션</div>
-    <div><span class="n">10</span>문제 해결 · 단축키 요약</div>
+    <div><span class="n">6</span>코덱 자가 학습 (자동)</div>
+    <div><span class="n">7</span>코덱 추천 (실측)</div>
+    <div><span class="n">8</span>동영상 변환</div>
+    <div><span class="n">9</span>우클릭 용량 최적화 · 자가 학습</div>
+    <div><span class="n">10</span>옵션</div>
+    <div><span class="n">11</span>문제 해결 · 단축키 요약</div>
   </div>
 
   <h2 style="margin-top:10mm"><span class="no">1</span>설치와 자동 업데이트</h2>
@@ -126,9 +127,9 @@
     <tr><td>6</td><td>코덱</td><td>저장 형식 선택. <b>자동(추천)</b>이 기본 — 5장 참고</td></tr>
     <tr><td>7</td><td>소리</td><td>시스템 소리 / 마이크 / 소리 없음</td></tr>
     <tr><td>8</td><td>모드</td><td>화면 녹화 · 소리만 녹음 · GIF 움짤</td></tr>
-    <tr><td>9</td><td>변환</td><td>가지고 있는 동영상을 작은 용량으로 변환 — 7장</td></tr>
-    <tr><td>10</td><td>추천</td><td>내 PC에 가장 효율 좋은 코덱 실측 — 6장</td></tr>
-    <tr><td>11</td><td>옵션</td><td>FPS, 단축키, 워터마크 등 — 9장</td></tr>
+    <tr><td>9</td><td>변환</td><td>가지고 있는 동영상을 작은 용량으로 변환 — 8장</td></tr>
+    <tr><td>10</td><td>추천</td><td>내 PC에 가장 효율 좋은 코덱 실측 · 학습 현황 — 6·7장</td></tr>
+    <tr><td>11</td><td>옵션</td><td>FPS, 단축키, 워터마크, 자가 학습 켜기/끄기 등 — 10장</td></tr>
     <tr><td>A</td><td>안내 줄</td><td>소리 상태 · 예상 용량(MB/분) · 💡 더 좋은 코덱 추천. 누르면 추천 창이 열립니다.</td></tr>
     <tr><td>B</td><td>상태 줄</td><td>녹화 시간 · 파일 크기 · 해상도 · 사용 코덱. 저장 후 파일 이름을 누르면 폴더가 열립니다.</td></tr>
   </table>
@@ -209,7 +210,44 @@
 </section>
 
 <section>
-  <h2><span class="no">6</span>코덱 추천 (실측)</h2>
+  <h2><span class="no">6</span>코덱 자가 학습 — 쓸수록 똑똑해지는 자동 모드</h2>
+  <p class="big">녹화만 하면 됩니다. MxCam이 <b>내 화면에 가장 맞는 코덱과 품질값</b>을 스스로 배웁니다.</p>
+  <div class="steps">
+    <div class="step"><div class="n">1</div><b>평소처럼 녹화</b>녹화 시작 3초 뒤부터<br>3초를 <strong>무손실 샘플</strong>로 따로 저장</div>
+    <div class="step"><div class="n">2</div><b>녹화 끝 → 학습</b>백그라운드에서 코덱·품질값을<br>바꿔 가며 시험 (약 20~40초)</div>
+    <div class="step"><div class="n">3</div><b>다음 녹화에 적용</b>"자동" 모드가 학습한<br>최적 코덱·단계로 녹화</div>
+  </div>
+  <div class="two">
+    <div>
+      <h3>무엇을 기준으로 고르나요?</h3>
+      <ul style="padding-left:5mm;margin:0">
+        <li><b>실시간 녹화가 가능</b>하고 (끊김 없음)</li>
+        <li>선택한 품질 단계의 <b>목표 화질</b>을 만족하면서 (3단계 = 원본의 97.5%)</li>
+        <li><b>용량이 가장 작은</b> 코덱 + 품질값</li>
+      </ul>
+      <p>해상도·프레임 대역별(예: 1080p 30fps)로 따로 학습합니다.</p>
+      <h3>추천 순서</h3>
+      <table>
+        <tr><td style="width:12%"><b>①</b></td><td><b>자가 학습 결과</b> (녹화할수록 정확)</td></tr>
+        <tr><td><b>②</b></td><td>실측 테스트 결과 (7장)</td></tr>
+        <tr><td><b>③</b></td><td>그래픽카드 등 사양 기준</td></tr>
+      </table>
+    </div>
+    <div>
+      <h3>학습 결과 확인</h3>
+      <div class="note">녹화가 끝나면 안내 줄에<br><b>🧠 학습 완료 (3회) → 다음 녹화부터 자동: NVIDIA NVENC HEVC 2.1단계</b><br>처럼 표시됩니다.</div>
+      <p>[추천] 창 위쪽에 <b>"🧠 녹화 자가 학습 N회 기준"</b>, 표의 <b>학습 용량비</b> 열에 코덱별 성적(원본 대비 %)이 나옵니다.</p>
+      <h3>켜기 / 끄기 · 초기화</h3>
+      <table>
+        <tr><td style="width:32%">끄기</td><td><b>[옵션] → "코덱 자가 학습"</b> 체크 해제. 학습도, 학습 결과 사용도 멈춥니다.</td></tr>
+        <tr><td>초기화</td><td><b>[추천] → [학습 초기화]</b></td></tr>
+      </table>
+    </div>
+  </div>
+  <div class="tip">새로 녹화를 시작하면 진행 중인 학습은 바로 멈춰서 녹화에 영향을 주지 않습니다. 충분히 학습된 화면 종류는 가끔만 다시 학습합니다. 학습 데이터는 내 PC에만 저장됩니다 (%APPDATA%\MxCam\learning.json). 우클릭 "용량 최적화"와 변환 창 ★추천도 같은 학습 데이터를 씁니다.</div>
+</section>
+<section>
+  <h2><span class="no">7</span>코덱 추천 (실측)</h2>
   <img class="shot" src="img/recommend.png" alt="">
   <p class="cap">[추천] 버튼 → 코덱 추천 창</p>
   <div class="steps">
@@ -226,7 +264,7 @@
 </section>
 
 <section>
-  <h2><span class="no">7</span>동영상 변환</h2>
+  <h2><span class="no">8</span>동영상 변환</h2>
   <div class="two">
     <div style="flex:0 0 58%"><img class="shot" src="img/convert.png" alt=""></div>
     <div>
@@ -252,7 +290,7 @@
 </section>
 
 <section>
-  <h2><span class="no">8</span>우클릭 용량 최적화 · 자가 학습</h2>
+  <h2><span class="no">9</span>우클릭 용량 최적화 · 자가 학습</h2>
   <div class="two">
     <div>
       <h3>탐색기에서 바로</h3>
@@ -291,7 +329,7 @@
 </section>
 
 <section>
-  <h2><span class="no">9</span>옵션</h2>
+  <h2><span class="no">10</span>옵션</h2>
   <div class="two">
     <div style="flex:0 0 46%"><img class="shot" src="img/options.png" alt=""></div>
     <div>
@@ -302,6 +340,7 @@
         <tr><td>녹화 중 최소화</td><td>녹화하면 MxCam 창을 숨김 (끔)</td></tr>
         <tr><td>자동 업데이트</td><td>시작할 때 새 버전 확인·설치 (켬)</td></tr>
         <tr><td>우클릭 메뉴</td><td>비디오 파일 우클릭 메뉴 (켬)</td></tr>
+        <tr><td>코덱 자가 학습</td><td>녹화 후 학습 → 자동 모드·변환 추천에 반영 (켬) — 6장</td></tr>
         <tr><td>FPS</td><td>초당 프레임 1~60 (30)</td></tr>
         <tr><td>품질 단계</td><td>1~5단계 (3 · 표준)</td></tr>
         <tr><td>커서 포함</td><td>마우스 커서도 녹화 (켬)</td></tr>
@@ -317,7 +356,7 @@
 </section>
 
 <section>
-  <h2><span class="no">10</span>문제 해결</h2>
+  <h2><span class="no">11</span>문제 해결</h2>
   <table>
     <tr><th style="width:34%">증상</th><th>해결</th></tr>
     <tr><td>단축키(F2 등)가 안 됨</td><td>다른 녹화 프로그램(oCam, 반디캠 등)이 같은 키를 쓰고 있습니다. 그 프로그램을 트레이에서 종료하거나, MxCam 옵션에서 단축키를 바꾸세요. 상태 줄에 "단축키 등록 실패"가 표시됩니다.</td></tr>

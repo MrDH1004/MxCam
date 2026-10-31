@@ -32,6 +32,8 @@ internal sealed class ConvertForm : Form
     int _sampleSeq;
 
     internal string? LastOutput { get; private set; }
+    internal string ReasonText => _reason.Text;
+    internal string? PlanTitle => _plan?.Title;
     internal SampleResult? LastSample { get; private set; }
     internal ConvertPreset? RecommendedPreset { get; private set; }
     internal event Action<bool>? ConvertFinished;

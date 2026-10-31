@@ -436,6 +436,46 @@ public sealed partial class MainForm
                 d2 != null ? $"학습 {d2.HistoryCount}건, 시도 {d2.Trials.Count}회 (1회차 {d1!.Trials.Count}회), {sw2.Elapsed.TotalSeconds:0}초, 선택 {Codecs.Video(d2.Kind).Label} {d2.Level:0.0}단계" : "");
             of2.Close();
         }
+        // ── 13-4. 코덱 자가 학습 통합 (녹화 → 백그라운드 학습 → 자동 모드 / 변환 추천) ──
+        {
+            _s.AutoLearn = true; _s.Mode = RecordMode.Screen; _s.Fps = 30; _s.Level = 3;
+            await ClickMenu(_btnCodec, "자동 (추천)");
+            var lr = _frame.CaptureRect;
+            string rc = Learning.RecClass(lr.Width & ~1, lr.Height & ~1, _s.Fps);
+            int lBefore = Learning.SessionCounts().GetValueOrDefault(rc);
+            T("녹화 학습 전: 자동 모드 근거 = 학습 아님", lBefore > 0 || !Codecs.RecommendBasis(_s, lr.Width & ~1, lr.Height & ~1, _s.Fps).Contains("학습"));
+            await RecordFor(7000);
+            T("녹화 후 백그라운드 학습 시작", await Until(() => Learning_Running, 5000));
+            T("녹화 학습 완료", await Until(() => !Learning_Running, 240000) && LastLearnResult != null && !LastLearnResult.StartsWith("실패"), LastLearnResult ?? "");
+            int after = Learning.SessionCounts().GetValueOrDefault(rc);
+            var learned = Codecs.LearnedFor(_s, lr.Width & ~1, lr.Height & ~1, _s.Fps);
+            T("학습 데이터 저장", after == lBefore + 1, $"{rc}: {lBefore} → {after}회");
+            var ap = Codecs.AutoProfile(_s, lr.Width & ~1, lr.Height & ~1, _s.Fps);
+            T("자동 모드가 학습 결과 사용", learned != null && ap.Video == learned.Kind && Codecs.RecommendBasis(_s, lr.Width & ~1, lr.Height & ~1, _s.Fps).StartsWith("학습"),
+                learned != null ? $"{Codecs.Video(learned.Kind).Label} {learned.Level:0.0}단계, 원본 대비 {learned.Ratio * 100:0.0}%" : "없음");
+            T("안내 줄에 학습 근거 표시", _hint.Text.Contains("학습"), _hint.Text);
+            using (var rf = new RecommendForm(_s, _ffmpeg!, _frame.CaptureRect))
+            {
+                rf.Show(this);
+                await Task.Delay(300);
+                var title = rf.Controls.OfType<Label>().First(l => l.Text.StartsWith("★ 추천")).Text;
+                T("추천 창: 학습 기준 표시", title.Contains("학습"), title.Replace("\n", " "));
+            }
+            // 옵션에서 끄면 학습도, 학습 결과 사용도 하지 않음
+            _s.AutoLearn = false;
+            T("학습 끄기 → 자동 모드는 학습 미사용", Codecs.LearnedFor(_s, lr.Width & ~1, lr.Height & ~1, _s.Fps) == null);
+            await RecordFor(5000);
+            await Task.Delay(1500);
+            T("학습 끄기 → 녹화 후 학습 안 함", !Learning_Running && Learning.SessionCounts().GetValueOrDefault(rc) == after);
+            _s.AutoLearn = true;
+            // 변환 창 ★추천도 같은 학습 데이터 (13-3 우클릭 최적화로 학습된 영상)
+            using (var cf = new ConvertForm(_s, _ffmpeg!))
+            {
+                cf.Show(this);
+                await cf.LoadFileAsync(srcH264);
+                T("변환 ★추천: 자가 학습 결과 사용", cf.ReasonText.Contains("자가 학습") && (cf.PlanTitle ?? "").Contains("학습"), $"{cf.PlanTitle} / {cf.ReasonText}");
+            }
+        }
         // ── 14. 결과 파일 목록 ──
         var files = Directory.GetFiles(outDir).Select(Path.GetFileName).ToList();
         _tlog.WriteLine($"\n저장된 파일 {files.Count}개: {string.Join(", ", files)}");

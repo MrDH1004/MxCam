@@ -123,7 +123,7 @@ internal static class SelfTest
             s.Bench = results;
             s.BenchPixelRate = (long)benchRegion.Width * benchRegion.Height * s.Fps;
             var autoP = Codecs.AutoProfile(s, benchRegion.Width, benchRegion.Height, s.Fps);
-            double autoLv = Codecs.AutoLevel(s, autoP.Video);
+            double autoLv = Codecs.AutoLevel(s, autoP.Video, benchRegion.Width, benchRegion.Height, s.Fps);
             Log($"  자동 모드 결과: {autoP.Name}, 보정 단계 {autoLv:0.00}");
             Log("  args: " + string.Join(' ', Codecs.VideoArgs(autoP.Video, autoLv, "mp4", s.Fps)));
             Log("  hint(x264 선택 시): " + Codecs.Hint(s, Codecs.Find("mp4_x264")!, benchRegion.Width, benchRegion.Height, s.Fps));

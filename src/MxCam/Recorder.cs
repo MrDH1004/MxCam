@@ -28,6 +28,8 @@ public sealed class RecordOptions
     public int AudioChannels { get; init; } = 2;
     /// <summary>GIF 모드에서 변환 없이 무손실 중간파일(mkv)을 OutputPath로 저장 (실측 추천의 기준 영상용).</summary>
     public bool LosslessOnly { get; init; }
+    /// <summary>녹화 학습용: 시작 3초 후부터 3초를 무손실로 이 경로에 따로 저장 (null이면 안 함).</summary>
+    public string? LearnSamplePath { get; init; }
 }
 
 public sealed record RecordResult(bool Ok, string Path, string Message, double Seconds, long Frames, long Duplicated);
@@ -49,6 +51,14 @@ public sealed class Recorder : IDisposable
     PipeFeeder? _video;
     readonly List<(AudioSource src, PipeFeeder pipe)> _audio = new();
     FfmpegProcess? _ff;
+    PipeFeeder? _sample;
+    FfmpegProcess? _sampleFf;
+    long _sampleFrames;
+    bool _sampleDone;
+    string _id = "";
+
+    /// <summary>학습용 무손실 샘플 (녹화가 충분히 길어 완성됐을 때만).</summary>
+    public string? LearnSample { get; private set; }
     Thread? _loop;
     AudioSource? _clockSource;
     readonly Stopwatch _sw = new();
@@ -100,6 +110,7 @@ public sealed class Recorder : IDisposable
         bool hasVideo = _o.Mode != RecordMode.Audio;
         bool wantAudio = _o.Mode != RecordMode.Gif;
         string id = Guid.NewGuid().ToString("N")[..8];
+        _id = id;
         Directory.CreateDirectory(Path.GetDirectoryName(_o.OutputPath)!);
         _encodePath = _o.Mode == RecordMode.Gif && !_o.LosslessOnly
             ? Path.Combine(Path.GetTempPath(), $"mxcam_{id}.mkv")
@@ -313,6 +324,7 @@ public sealed class Recorder : IDisposable
                 Interlocked.Add(ref _frames, repeat);
                 Interlocked.Add(ref _dups, repeat - 1);
                 next = target + 1;
+                if (_o.LearnSamplePath != null && !_sampleDone && t >= 3) FeedSample(cap, repeat);
             }
         }
         catch (Exception ex)
@@ -323,6 +335,50 @@ public sealed class Recorder : IDisposable
         {
             Native.timeEndPeriod(1);
         }
+    }
+
+    /// <summary>학습 샘플: 캡처한 프레임을 별도 ffmpeg(무손실 x264)로 3초간 저장. 바쁘면 프레임을 건너뛰어 녹화에 영향 없음.</summary>
+    void FeedSample(ScreenCapturer cap, int repeat)
+    {
+        try
+        {
+            if (_sample == null)
+            {
+                _sample = new PipeFeeder("mxcam_s_" + _id, 12);
+                _sampleFf = new FfmpegProcess(_o.FfmpegExe, new[]
+                {
+                    "-hide_banner", "-loglevel", "error", "-y", "-f", "rawvideo", "-pix_fmt", "bgr0", "-video_size", $"{cap.Width}x{cap.Height}",
+                    "-framerate", _o.Fps.ToString(), "-i", _sample.Path, "-c:v", "libx264", "-preset", "ultrafast", "-qp", "0", _o.LearnSamplePath!,
+                });
+            }
+            var copy = new byte[cap.FrameBytes];
+            cap.CopyTo(copy);
+            if (_sample.TryAdd(copy, copy.Length, repeat, null, 0)) _sampleFrames += repeat;
+            if (_sampleFrames >= _o.Fps * 3)
+            {
+                _sampleDone = true;
+                _sample.Complete();
+            }
+        }
+        catch
+        {
+            _sampleDone = true;
+        }
+    }
+
+    void FinishSample()
+    {
+        if (_sample == null) return;
+        _sample.Complete();
+        bool ok = _sampleFf != null && _sampleFf.WaitForExit(30000) && _sampleFf.ExitCode == 0
+                  && _sampleFrames >= _o.Fps * 2 && File.Exists(_o.LearnSamplePath);
+        _sample.Join(2000);
+        _sample.Dispose();
+        _sampleFf?.Dispose();
+        _sample = null;
+        _sampleFf = null;
+        if (ok) LearnSample = _o.LearnSamplePath;
+        else try { if (_o.LearnSamplePath != null) File.Delete(_o.LearnSamplePath); } catch { }
     }
 
     public RecordResult Stop()
@@ -339,6 +395,7 @@ public sealed class Recorder : IDisposable
         if (!exited) _ff?.Kill();
         int code = exited ? _ff?.ExitCode ?? -1 : -1;
         string log = _ff?.Log ?? "";
+        FinishSample();
         Cleanup();
 
         if (code != 0 || !File.Exists(_encodePath) || new FileInfo(_encodePath).Length == 0)
@@ -376,6 +433,8 @@ public sealed class Recorder : IDisposable
 
     void Cleanup()
     {
+        if (_sample != null) { _sample.Dispose(); _sample = null; }
+        if (_sampleFf != null) { _sampleFf.Dispose(); _sampleFf = null; }
         foreach (var (src, pipe) in _audio)
         {
             src.Dispose();

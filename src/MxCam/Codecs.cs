@@ -385,19 +385,29 @@ public static class Codecs
 
     static bool HasBench(Settings s) => s.Bench.Any(b => b.Error == null && b.Ssim.All(v => v > 0));
 
-    /// <summary>실측 결과가 있으면 "같은 화질 환산 용량 최소" 코덱, 없으면 정적 추천.</summary>
+    /// <summary>녹화 학습 결과 (이 해상도·프레임 대역에서 실시간 가능 + 목표 화질 + 최소 용량). 학습 꺼짐/데이터 없음이면 null.</summary>
+    public static Learned? LearnedFor(Settings s, int w, int h, int fps) =>
+        s.AutoLearn ? Learning.Best(Learning.RecClass(w, h, fps), s.Level, Recommender.RealtimeMargin) : null;
+
+    /// <summary>추천 우선순위: ① 녹화 학습 결과 ② 실측 테스트 ③ 하드웨어 기준.</summary>
     public static VideoEncoderInfo Recommended(Settings s, int w, int h, int fps)
     {
+        if (LearnedFor(s, w, h, fps) is { } l) return Video(l.Kind);
         if (HasBench(s) && Recommender.Decide(s.Bench, s.Level) is { } best && IsVideoAvailable(best.Kind))
             return Video(best.Kind);
         return BestVideo(w, h, fps);
     }
 
+    /// <summary>추천 근거 (화면 표시용).</summary>
+    public static string RecommendBasis(Settings s, int w, int h, int fps) =>
+        LearnedFor(s, w, h, fps) is { } l ? $"학습 {l.Sessions}회" : HasBench(s) ? "실측" : "사양 기준";
+
     /// <summary>
     /// 자동 모드에서 실제로 쓸 (소수) 품질 단계: 실측이 있으면 선택 단계의 기준 화질(x264)을 내도록 보정.
     /// 예) VP9가 3단계에서 기준보다 훨씬 고화질·대용량이면 더 낮은 단계로 내려 같은 화질·더 작은 용량으로 녹화.
     /// </summary>
-    public static double AutoLevel(Settings s, VKind kind) => AutoLevelFor(s, kind, s.Level);
+    public static double AutoLevel(Settings s, VKind kind, int w, int h, int fps) =>
+        LearnedFor(s, w, h, fps) is { } l && l.Kind == kind ? l.Level : AutoLevelFor(s, kind, s.Level);
 
     /// <summary>임의 단계에 대한 보정 단계 (변환 기능에서 사용).</summary>
     public static double AutoLevelFor(Settings s, VKind kind, int level)
@@ -450,13 +460,16 @@ public static class Codecs
         var cur = p.VideoInfo!;
         if (cur.Kind == VKind.Gif) return "GIF는 용량이 매우 큼 · 짧은 움짤용 (MP4 권장)";
         var best = Recommended(s, w, h, fps);
-        double level = p.Id == AutoId ? AutoLevel(s, cur.Kind) : s.Level;
+        double level = p.Id == AutoId ? AutoLevel(s, cur.Kind, w, h, fps) : s.Level;
         double est = EstimateMBPerMin(s, cur, level, w, h, fps);
         string head = $"예상 약 {est:0.#}MB/분 · 용량효율 {Stars((cur.Efficiency + 1) / 2)}";
         if (best.Kind != cur.Kind)
         {
             double pct = (1 - SizeFactor(best) / SizeFactor(cur)) * 100;
-            if (HasBench(s))
+            var lb = LearnedFor(s, w, h, fps);
+            var lc = s.AutoLearn ? Learning.Ranking(Learning.RecClass(w, h, fps), s.Level).FirstOrDefault(x => x.Kind == cur.Kind) : null;
+            if (lb != null && lc != null && lc.Ratio > 0) pct = (1 - lb.Ratio / lc.Ratio) * 100;
+            else if (HasBench(s))
             {
                 Recommender.Decide(s.Bench, s.Level);
                 var bb = s.Bench.FirstOrDefault(b => b.Kind == best.Kind && b.MBAtTarget > 0);
@@ -465,6 +478,6 @@ public static class Codecs
             }
             if (pct > 3) return $"{head} · 💡 {best.Label}(으)로 바꾸면 같은 화질에 약 {pct:0}% 작아짐";
         }
-        return $"{head} · ★ 이 PC 추천 코덱" + (HasBench(s) ? " (실측)" : "");
+        return $"{head} · ★ 이 PC 추천 코덱 ({RecommendBasis(s, w, h, fps)})";
     }
 }

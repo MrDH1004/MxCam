@@ -142,6 +142,11 @@ public static class Converter
         string why = src.SourceEfficiency < best.Efficiency
             ? $"원본 {MediaInfo.CodecName(src.VCodec)}보다 {best.Label}의 압축 효율이 높아"
             : $"원본 비트레이트가 높아({src.Mbps:0.0} Mbps)";
+        if (s.AutoLearn && Learning.Best(Learning.ClassOf(src), s.Level) is { } l)
+        {
+            reason = $"🧠 비슷한 영상 {l.Sessions}건의 자가 학습 결과: {Codecs.Video(l.Kind).Label} {l.Level:0.0}단계가 같은 화질에서 가장 작습니다 (원본 대비 약 {l.Ratio * 100:0}%).";
+            return ConvertPreset.Recommended;
+        }
         reason = $"{why} 같은 화질에서 용량을 크게 줄일 수 있습니다. (이 PC 추천 인코더: {best.Label})";
         return ConvertPreset.Recommended;
     }
@@ -153,6 +158,13 @@ public static class Converter
         {
             case ConvertPreset.Recommended:
             {
+                // 같은 종류 영상의 자가 학습 결과가 있으면 그대로 사용 (우클릭 최적화와 같은 데이터)
+                if (s.AutoLearn && Learning.Best(Learning.ClassOf(src), level) is { } l)
+                {
+                    var li = Codecs.Video(l.Kind);
+                    return new ConvertPlan { Preset = preset, Video = l.Kind, Ext = l.Kind == VKind.Vp9 ? "webm" : "mp4",
+                        Title = $"{li.Label} (학습 {l.Sessions}회)", Level = level, VideoLevel = l.Level };
+                }
                 var best = Codecs.Recommended(s, src.Width, src.Height, fps);
                 return new ConvertPlan { Preset = preset, Video = best.Kind, Ext = best.Kind == VKind.Vp9 ? "webm" : "mp4",
                     Title = best.Label, Level = level, VideoLevel = Codecs.AutoLevelFor(s, best.Kind, level) };

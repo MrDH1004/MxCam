@@ -13,7 +13,12 @@ public sealed class LearnRecord
     public double SizeRatio { get; set; }
     public double Speed { get; set; }
     public DateTime At { get; set; }
+    /// <summary>같은 시험(한 영상)에서 나온 기록끼리 묶는 번호.</summary>
+    public string Session { get; set; } = "";
 }
+
+/// <summary>학습으로 찾은 최적 선택.</summary>
+public sealed record Learned(VKind Kind, double Level, double Ratio, int Sessions);
 
 /// <summary>학습 데이터 저장소 (%APPDATA%\MxCam\learning.json). 여러 변환 창이 동시에 써도 안전하게 잠금.</summary>
 public static class Learning
@@ -34,7 +39,59 @@ public static class Learning
         return $"{m.VCodec}|{res}|{fps}|{comp}";
     }
 
+    /// <summary>녹화용 분류: 해상도 대역 · 프레임 대역 (녹화 시작 전에 알 수 있는 정보).</summary>
+    public static string RecClass(int w, int h, int fps)
+    {
+        string res = h switch { <= 480 => "SD", <= 720 => "HD", <= 1080 => "FHD", <= 1440 => "QHD", _ => "UHD" };
+        string f = fps switch { <= 31 => "30", <= 61 => "60", _ => "hi" };
+        return $"rec|{res}|{f}";
+    }
+
+    /// <summary>
+    /// 분류별 학습 결과에서 "목표 화질(품질 단계)을 만족하는 가장 작은 코덱·단계"를 고른다.
+    /// 시험(세션)마다 코덱별 최소 용량비를 구해 평균 → 가장 작은 코덱. minSpeed로 실시간 녹화 가능 여부를 거른다.
+    /// </summary>
+    public static Learned? Best(string cls, int level, double minSpeed = 0) => Ranking(cls, level, minSpeed).FirstOrDefault();
+
+    /// <summary>코덱별 학습 성적 (같은 화질 기준 용량비가 작은 순).</summary>
+    public static List<Learned> Ranking(string cls, int level, double minSpeed = 0)
+    {
+        double target = Optimizer.TargetSsim(level);
+        var recs = Load().Where(r => r.Class == cls && r.Ssim >= target - 0.002 && r.Speed >= minSpeed && Codecs.IsVideoAvailable(r.Kind)).ToList();
+        var perSession = recs.GroupBy(r => (r.Session, r.Kind)).Select(g => g.OrderBy(r => r.SizeRatio).First());
+        return perSession.GroupBy(r => r.Kind)
+            .Select(g => new Learned(g.Key, g.Average(r => r.Level), g.Average(r => r.SizeRatio), g.Select(r => r.Session).Distinct().Count()))
+            .OrderBy(x => x.Ratio).ToList();
+    }
+
+    /// <summary>분류별 학습 횟수(세션 수).</summary>
+    public static Dictionary<string, int> SessionCounts() =>
+        Load().GroupBy(r => r.Class).ToDictionary(g => g.Key, g => g.Select(r => r.Session).Distinct().Count());
+
+    public static void Clear()
+    {
+        try { if (File.Exists(FilePath)) File.Delete(FilePath); } catch { }
+        _cache = null;
+    }
+
+    static List<LearnRecord>? _cache;
+    static DateTime _cacheStamp;
+
     public static List<LearnRecord> Load()
+    {
+        try
+        {
+            var stamp = File.Exists(FilePath) ? File.GetLastWriteTimeUtc(FilePath) : DateTime.MinValue;
+            if (_cache != null && stamp == _cacheStamp) return _cache;
+            var list = LoadFile();
+            _cache = list;
+            _cacheStamp = stamp;
+            return list;
+        }
+        catch { return LoadFile(); }
+    }
+
+    static List<LearnRecord> LoadFile()
     {
         for (int i = 0; i < 10; i++)
         {
@@ -98,10 +155,14 @@ public static class Optimizer
 
     static readonly Random Rng = new();
 
-    public static OptimizeDecision Decide(string ffmpeg, MediaInfo src, Settings s, int level, IProgress<string> progress, CancellationToken ct)
+    /// <param name="classOverride">학습 분류를 직접 지정 (녹화 학습: "rec|해상도|fps")</param>
+    /// <param name="minSpeed">이 속도(실시간 배수) 이상인 후보만 선택 (녹화는 실시간 여유 필요)</param>
+    public static OptimizeDecision Decide(string ffmpeg, MediaInfo src, Settings s, int level, IProgress<string> progress, CancellationToken ct,
+        string? classOverride = null, double minSpeed = 0)
     {
         double target = TargetSsim(level);
-        string cls = Learning.ClassOf(src);
+        string cls = classOverride ?? Learning.ClassOf(src);
+        string session = Guid.NewGuid().ToString("N")[..8];
         var history = Learning.Load().Where(r => r.Class == cls).ToList();
         var available = AllCandidates.Where(Codecs.IsVideoAvailable).ToList();
 
@@ -148,7 +209,7 @@ public static class Optimizer
                 if (r.Error != null) break;
                 var t = new Trial(kind, Math.Clamp(cur, 1, 5), r.EstimatedMB, r.Ssim, r.Speed);
                 trials.Add(t);
-                newRecords.Add(new LearnRecord { Class = cls, Kind = kind, Level = t.Level, Ssim = t.Ssim, SizeRatio = t.MB / srcMB, Speed = t.Speed, At = DateTime.Now });
+                newRecords.Add(new LearnRecord { Class = cls, Kind = kind, Level = t.Level, Ssim = t.Ssim, SizeRatio = t.MB / srcMB, Speed = t.Speed, At = DateTime.Now, Session = session });
                 if (r.Ssim >= target) hi = Math.Min(hi, cur); else lo = Math.Max(lo, cur);
                 if (hi - lo <= 0.6 || (cur <= 1 && r.Ssim >= target) || (cur >= 5 && r.Ssim < target)) break;
                 cur = hi > 5 ? Math.Min(5, cur + 1.5) : lo < 1 ? Math.Max(1, cur - 1.5) : (lo + hi) / 2;
@@ -158,7 +219,7 @@ public static class Optimizer
 
         // 너무 느린 후보 제외: 예상 변환 시간이 영상 길이의 3배(최소 2분)를 넘으면 제외
         double maxTime = Math.Max(120, src.Duration * 3);
-        var ok = trials.Where(t => t.Ssim >= target && t.Speed > 0 && src.Duration / t.Speed <= maxTime).ToList();
+        var ok = trials.Where(t => t.Ssim >= target && t.Speed > 0 && t.Speed >= minSpeed && src.Duration / t.Speed <= maxTime).ToList();
         if (ok.Count == 0)
         {
             // 목표 화질을 못 맞추면 가장 화질 좋은 시도로

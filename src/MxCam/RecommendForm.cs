@@ -17,6 +17,7 @@ internal sealed class RecommendForm : Form
     readonly Button _btnApply = new() { Text = "추천 코덱으로 자동 설정", AutoSize = true };
     readonly Button _btnUse = new() { Text = "선택한 코덱 사용", AutoSize = true };
     readonly Button _btnClose = new() { Text = "닫기", AutoSize = true, DialogResult = DialogResult.Cancel };
+    readonly Button _btnReset = new() { Text = "학습 초기화", AutoSize = true };
     CancellationTokenSource? _cts;
 
     public RecommendForm(Settings s, string ffmpeg, Rectangle region)
@@ -47,10 +48,18 @@ internal sealed class RecommendForm : Form
         _list.Columns.Add("실측 화질", 75, HorizontalAlignment.Right);
         _list.Columns.Add("같은 화질 환산", 105, HorizontalAlignment.Right);
         _list.Columns.Add("실측 속도", 70, HorizontalAlignment.Right);
+        _list.Columns.Add("학습 용량비", 80, HorizontalAlignment.Right);
         _list.Columns.Add("판정", 150);
 
         var buttons = new FlowLayoutPanel { Dock = DockStyle.Bottom, Height = 42, FlowDirection = FlowDirection.RightToLeft, Padding = new Padding(6) };
-        buttons.Controls.AddRange(new Control[] { _btnClose, _btnUse, _btnApply, _btnBench });
+        buttons.Controls.AddRange(new Control[] { _btnClose, _btnUse, _btnApply, _btnBench, _btnReset });
+        _btnReset.Click += (_, _) =>
+        {
+            if (MessageBox.Show(this, "녹화·변환 자가 학습 데이터를 모두 지울까요?", "MxCam", MessageBoxButtons.OKCancel) != DialogResult.OK) return;
+            Learning.Clear();
+            _progress.Text = "학습 데이터를 초기화했습니다.";
+            Refill();
+        };
 
         Controls.Add(_list);
         Controls.Add(_progress);
@@ -89,15 +98,19 @@ internal sealed class RecommendForm : Form
         _levelName.Text = Codecs.LevelNames[_s.Level - 1];
         var rec = Codecs.Recommended(_s, W, H, _s.Fps);
         var bestBench = Recommender.Decide(_s.Bench, _s.Level);
-        string basis = bestBench?.Kind == rec.Kind
-            ? $"실측 결과 기준 ({_s.BenchAt:MM-dd HH:mm}) · 같은 화질에서 용량 최소"
-            : "하드웨어/성능 기준 (실측 테스트를 하면 더 정확)";
-        string auto = bestBench?.Kind == rec.Kind ? $" · 자동 녹화 시 보정 단계 {Codecs.AutoLevel(_s, rec.Kind):0.0}" : "";
+        var learned = Codecs.LearnedFor(_s, W, H, _s.Fps);
+        string basis = learned != null
+            ? $"🧠 녹화 자가 학습 {learned.Sessions}회 기준 · 같은 화질에서 용량 최소"
+            : bestBench?.Kind == rec.Kind
+                ? $"실측 결과 기준 ({_s.BenchAt:MM-dd HH:mm}) · 같은 화질에서 용량 최소"
+                : _s.AutoLearn ? "하드웨어 기준 — 녹화를 하면 자동으로 학습합니다 (또는 실측 테스트)" : "하드웨어/성능 기준 (실측 테스트를 하면 더 정확)";
+        string auto = $" · 자동 녹화 단계 {Codecs.AutoLevel(_s, rec.Kind, W, H, _s.Fps):0.0}";
         _title.Text = $"★ 추천: {rec.Label}\n   {basis} · {W}×{H} {_s.Fps}fps · {Codecs.LevelNames[_s.Level - 1]}{auto}";
 
         _list.BeginUpdate();
         _list.Items.Clear();
         int li = _s.Level - 1;
+        var ranking = _s.AutoLearn ? Learning.Ranking(Learning.RecClass(W, H, _s.Fps), _s.Level, Recommender.RealtimeMargin) : new List<Learned>();
         var rows = Codecs.AllVideoInfos
             .Where(i => i.Kind is not (VKind.Gif or VKind.DivX or VKind.OpenH264) && Codecs.IsVideoAvailable(i.Kind))
             .OrderByDescending(i => i.Kind == rec.Kind).ThenByDescending(i => i.Efficiency).ThenByDescending(i => i.Hardware);
@@ -122,6 +135,7 @@ internal sealed class RecommendForm : Form
                 b == null || b.Error != null ? "-" : (b.Ssim[li] * 100).ToString("0.00") + "%",
                 b == null || b.Error != null || b.MBAtTarget <= 0 ? "-" : (b.State < 0 ? "≤ " : "") + b.MBAtTarget.ToString("0.00") + " MB/분",
                 b == null || b.Error != null ? "-" : $"x{b.Speed:0.0}",
+                ranking.FirstOrDefault(x => x.Kind == i.Kind) is { } lr ? $"{lr.Ratio * 100:0.0}% ({lr.Sessions}회)" : "-",
                 verdict,
             }) { Tag = i.Kind };
             if (i.Kind == rec.Kind)

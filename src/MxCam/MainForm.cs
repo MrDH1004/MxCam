@@ -348,6 +348,7 @@ public sealed partial class MainForm : Form
 
     void StartRecording()
     {
+        _learnCts?.Cancel(); // 학습보다 녹화가 우선
         _ffmpeg ??= Ffmpeg.Resolve(_s.FfmpegPath);
         if (_ffmpeg == null)
         {
@@ -363,7 +364,9 @@ public sealed partial class MainForm : Form
             Mode = _s.Mode,
             Profile = profile,
             Level = _s.Level,
-            VideoLevel = profile.Id == Codecs.AutoId ? Codecs.AutoLevel(_s, profile.Video) : _s.Level,
+            VideoLevel = profile.Id == Codecs.AutoId ? Codecs.AutoLevel(_s, profile.Video, region.Width & ~1, region.Height & ~1, _s.Fps) : _s.Level,
+            LearnSamplePath = _s.AutoLearn && _s.Mode == RecordMode.Screen && region.Width >= 160
+                ? Path.Combine(Path.GetTempPath(), $"mxcam_learn_{Guid.NewGuid():N}.mkv") : null,
             Fps = _s.Fps,
             Cursor = _s.RecordCursor,
             SystemAudio = _s.SystemAudio,
@@ -415,6 +418,8 @@ public sealed partial class MainForm : Form
         _lblState.Text = "저장 중…";
         _btnRecord.Enabled = _btnPause.Enabled = false;
         var result = await Task.Run(rec.Stop);
+        var learnSample = rec.LearnSample;
+        var learnSize = new Size(rec.VideoWidth, rec.VideoHeight);
         rec.Dispose();
         _rec = null;
         _stopping = false;
@@ -437,6 +442,7 @@ public sealed partial class MainForm : Form
             _lblSize.Text = FormatSize(size);
             if (!string.IsNullOrEmpty(result.Message)) _hint.Text = "⚠ " + result.Message.Split('\n')[0];
             if (_s.OpenFolderAfterRecord && !restart) OpenInExplorer(result.Path);
+            if (learnSample != null) _ = LearnFromRecordingAsync(learnSample, learnSize);
         }
         else
         {
@@ -444,6 +450,56 @@ public sealed partial class MainForm : Form
             ShowError("MxCam - 녹화 실패", Trim(result.Message, 1500));
         }
         if (restart && result.Ok) StartRecording();
+    }
+
+    // ───────────── 녹화 자가 학습 ─────────────
+
+    CancellationTokenSource? _learnCts;
+    internal bool Learning_Running => _learnCts != null;
+    internal string? LastLearnResult { get; private set; }
+
+    /// <summary>
+    /// 녹화가 끝나면 녹화 중 저장한 3초 무손실 샘플로 코덱·품질값을 시험해 학습한다 (백그라운드, 녹화를 다시 시작하면 취소).
+    /// 학습이 쌓이면 시험 후보를 줄이고, 가끔만 다른 후보를 탐색한다.
+    /// </summary>
+    async Task LearnFromRecordingAsync(string sample, Size size)
+    {
+        if (_learnCts != null || _ffmpeg == null || !_s.AutoLearn) { TryDelete(sample); return; }
+        string cls = Learning.RecClass(size.Width, size.Height, _s.Fps);
+        int sessions = Learning.SessionCounts().GetValueOrDefault(cls);
+        // 충분히 학습된 화면 종류는 가끔만(30%) 다시 학습해 계속 개선
+        if (sessions >= 5 && Random.Shared.NextDouble() > 0.3) { TryDelete(sample); return; }
+        var cts = _learnCts = new CancellationTokenSource();
+        string ff = _ffmpeg;
+        int level = _s.Level;
+        _hint.Text = "🧠 방금 녹화한 화면으로 코덱 자가 학습 중… (백그라운드)";
+        try
+        {
+            var info = await Task.Run(() => MediaInfo.Probe(ff, sample), cts.Token);
+            var d = await Task.Run(() => Optimizer.Decide(ff, info, _s, level, new Progress<string>(), cts.Token, cls, Recommender.RealtimeMargin), cts.Token);
+            var best = Learning.Best(cls, level, Recommender.RealtimeMargin);
+            LastLearnResult = best != null ? $"{Codecs.Video(best.Kind).Label} {best.Level:0.0}단계" : Codecs.Video(d.Kind).Label;
+            if (!IsDisposed && _rec == null)
+                _hint.Text = best != null
+                    ? $"🧠 학습 완료 ({best.Sessions}회) → 다음 녹화부터 자동: {Codecs.Video(best.Kind).Label} {best.Level:0.0}단계"
+                    : "🧠 학습 완료";
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex)
+        {
+            LastLearnResult = "실패: " + ex.Message;
+        }
+        finally
+        {
+            _learnCts = null;
+            cts.Dispose();
+            TryDelete(sample);
+        }
+    }
+
+    static void TryDelete(string f)
+    {
+        try { File.Delete(f); } catch { }
     }
 
     void OnFault(Recorder rec, string msg)

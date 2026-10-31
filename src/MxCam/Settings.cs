@@ -73,6 +73,8 @@ public sealed class Settings
     public bool AutoUpdate { get; set; } = true;
     /// <summary>탐색기에서 비디오 파일 우클릭 → "MxCam: 용량 최적화 변환" 메뉴.</summary>
     public bool ShellMenu { get; set; } = true;
+    /// <summary>녹화가 끝나면 그 화면으로 코덱을 자가 학습하고, 자동 모드·변환 추천에 학습 결과를 쓴다.</summary>
+    public bool AutoLearn { get; set; } = true;
     public string WatermarkPath { get; set; } = "";
     public int WatermarkOpacity { get; set; } = 70;
     public WatermarkPos WatermarkPosition { get; set; } = WatermarkPos.BottomRight;
