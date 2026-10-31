@@ -1,0 +1,172 @@
+using System.Text.Json;
+
+namespace MxCam;
+
+/// <summary>학습 기록 1건: 어떤 종류의 영상을 어떤 코덱·단계로 바꿨더니 결과가 어땠는지.</summary>
+public sealed class LearnRecord
+{
+    public string Class { get; set; } = "";
+    public VKind Kind { get; set; }
+    public double Level { get; set; }
+    public double Ssim { get; set; }
+    /// <summary>출력 용량 / 원본 용량.</summary>
+    public double SizeRatio { get; set; }
+    public double Speed { get; set; }
+    public DateTime At { get; set; }
+}
+
+/// <summary>학습 데이터 저장소 (%APPDATA%\MxCam\learning.json). 여러 변환 창이 동시에 써도 안전하게 잠금.</summary>
+public static class Learning
+{
+    static string FilePath => Path.Combine(Settings.DirPath, "learning.json");
+    const int MaxRecords = 5000;
+
+    /// <summary>
+    /// 영상 분류: 원본 코덱 · 해상도 대역 · 프레임 대역 · 압축 정도(픽셀당 비트) 대역.
+    /// 같은 분류의 영상은 최적 코덱/단계가 비슷하다는 가정으로 학습을 재사용한다.
+    /// </summary>
+    public static string ClassOf(MediaInfo m)
+    {
+        string res = m.Height switch { <= 480 => "SD", <= 720 => "HD", <= 1080 => "FHD", <= 1440 => "QHD", _ => "UHD" };
+        string fps = m.Fps switch { <= 31 => "30", <= 61 => "60", _ => "hi" };
+        double bpp = m.BitsPerPixel;
+        string comp = bpp switch { < 0.05 => "low", < 0.12 => "mid", < 0.3 => "high", _ => "vhigh" };
+        return $"{m.VCodec}|{res}|{fps}|{comp}";
+    }
+
+    public static List<LearnRecord> Load()
+    {
+        for (int i = 0; i < 10; i++)
+        {
+            try
+            {
+                if (!File.Exists(FilePath)) return new List<LearnRecord>();
+                using var fs = new FileStream(FilePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+                return JsonSerializer.Deserialize<List<LearnRecord>>(fs) ?? new List<LearnRecord>();
+            }
+            catch (IOException) { Thread.Sleep(50); }
+            catch { return new List<LearnRecord>(); }
+        }
+        return new List<LearnRecord>();
+    }
+
+    public static void Add(IEnumerable<LearnRecord> records)
+    {
+        for (int i = 0; i < 20; i++)
+        {
+            try
+            {
+                Directory.CreateDirectory(Settings.DirPath);
+                using var fs = new FileStream(FilePath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
+                var list = fs.Length > 0 ? JsonSerializer.Deserialize<List<LearnRecord>>(fs) ?? new() : new List<LearnRecord>();
+                list.AddRange(records);
+                if (list.Count > MaxRecords) list.RemoveRange(0, list.Count - MaxRecords);
+                fs.SetLength(0);
+                JsonSerializer.Serialize(fs, list);
+                return;
+            }
+            catch (IOException) { Thread.Sleep(100); }
+            catch (JsonException)
+            {
+                try { File.Delete(FilePath); } catch { }
+            }
+        }
+    }
+}
+
+public sealed record Trial(VKind Kind, double Level, double MB, double Ssim, double Speed);
+
+public sealed record OptimizeDecision(VKind Kind, double Level, double EstMB, double Ssim, double Speed, bool NoGain,
+    int HistoryCount, bool UsedHistory, List<Trial> Trials);
+
+/// <summary>
+/// 자가 학습 용량 최적화.
+///  목표: 선택한 품질 단계의 목표 화질(SSIM)을 만족하면서 용량이 가장 작은 (코덱, 품질값) 찾기.
+///  방법: 영상 가운데 6초 샘플을 후보 코덱마다 품질값을 바꿔 가며 인코딩 → SSIM으로 목표 화질 경계 탐색.
+///  학습: 결과를 저장해 두고, 같은 분류의 영상은 성적 좋은 코덱 2개 + (20% 확률로) 다른 후보 1개만 시험.
+/// </summary>
+public static class Optimizer
+{
+    /// <summary>품질 단계 → 목표 화질 (원본 대비 SSIM). 3단계 0.975 ≈ 눈으로 구분 어려움.</summary>
+    public static double TargetSsim(int level) => new[] { 0.95, 0.965, 0.975, 0.985, 0.992 }[Math.Clamp(level, 1, 5) - 1];
+
+    static readonly VKind[] AllCandidates =
+    {
+        VKind.NvencHevc, VKind.NvencAv1, VKind.QsvHevc, VKind.AmfHevc, VKind.SvtAv1, VKind.X265,
+        VKind.Nvenc264, VKind.Qsv264, VKind.Amf264, VKind.X264,
+    };
+
+    static readonly Random Rng = new();
+
+    public static OptimizeDecision Decide(string ffmpeg, MediaInfo src, Settings s, int level, IProgress<string> progress, CancellationToken ct)
+    {
+        double target = TargetSsim(level);
+        string cls = Learning.ClassOf(src);
+        var history = Learning.Load().Where(r => r.Class == cls).ToList();
+        var available = AllCandidates.Where(Codecs.IsVideoAvailable).ToList();
+
+        // 학습된 성적: 목표 화질을 만족한 기록들의 평균 용량비 (낮을수록 좋음)
+        var learned = history.Where(r => r.Ssim >= target - 0.002)
+            .GroupBy(r => r.Kind)
+            .Select(g => (kind: g.Key, ratio: g.Average(r => r.SizeRatio), level: g.Average(r => r.Level), n: g.Count()))
+            .Where(x => available.Contains(x.kind))
+            .OrderBy(x => x.ratio).ToList();
+
+        List<VKind> toTest;
+        bool usedHistory = learned.Count >= 2 && history.Count >= 4;
+        if (usedHistory)
+        {
+            toTest = learned.Take(2).Select(x => x.kind).ToList();
+            // 탐색: 가끔 다른 후보도 시험해서 더 좋은 선택이 있는지 계속 확인
+            var others = available.Except(toTest).ToList();
+            if (others.Count > 0 && Rng.NextDouble() < 0.2) toTest.Add(others[Rng.Next(others.Count)]);
+        }
+        else
+        {
+            // 학습 전: 효율 높은 순으로 최대 5개 (GPU 우선, 같은 계열 GPU/CPU 중복은 줄임)
+            toTest = available.OrderByDescending(k => Codecs.Video(k).Efficiency).ThenByDescending(k => Codecs.Video(k).Hardware).Take(5).ToList();
+        }
+
+        var trials = new List<Trial>();
+        var newRecords = new List<LearnRecord>();
+        double srcMB = src.Size / 1_000_000.0;
+        int idx = 0;
+        foreach (var kind in toTest)
+        {
+            ct.ThrowIfCancellationRequested();
+            idx++;
+            var info = Codecs.Video(kind);
+            double start = learned.FirstOrDefault(x => x.kind == kind).level is > 0 and var l ? l : 3;
+            // 품질값 이분 탐색: lo = 목표 미달 단계, hi = 목표 만족 단계
+            double lo = 0.5, hi = 5.5, cur = start;
+            for (int step = 0; step < 4; step++)
+            {
+                ct.ThrowIfCancellationRequested();
+                progress.Report($"[{idx}/{toTest.Count}] {info.Label} · {cur:0.0}단계 시험 중…");
+                var plan = new ConvertPlan { Preset = ConvertPreset.Recommended, Video = kind, Ext = "mp4", Title = info.Label, Level = level, VideoLevel = Math.Clamp(cur, 1, 5) };
+                var r = Converter.Sample(ffmpeg, src, plan, ct);
+                if (r.Error != null) break;
+                var t = new Trial(kind, Math.Clamp(cur, 1, 5), r.EstimatedMB, r.Ssim, r.Speed);
+                trials.Add(t);
+                newRecords.Add(new LearnRecord { Class = cls, Kind = kind, Level = t.Level, Ssim = t.Ssim, SizeRatio = t.MB / srcMB, Speed = t.Speed, At = DateTime.Now });
+                if (r.Ssim >= target) hi = Math.Min(hi, cur); else lo = Math.Max(lo, cur);
+                if (hi - lo <= 0.6 || (cur <= 1 && r.Ssim >= target) || (cur >= 5 && r.Ssim < target)) break;
+                cur = hi > 5 ? Math.Min(5, cur + 1.5) : lo < 1 ? Math.Max(1, cur - 1.5) : (lo + hi) / 2;
+            }
+        }
+        Learning.Add(newRecords);
+
+        // 너무 느린 후보 제외: 예상 변환 시간이 영상 길이의 3배(최소 2분)를 넘으면 제외
+        double maxTime = Math.Max(120, src.Duration * 3);
+        var ok = trials.Where(t => t.Ssim >= target && t.Speed > 0 && src.Duration / t.Speed <= maxTime).ToList();
+        if (ok.Count == 0)
+        {
+            // 목표 화질을 못 맞추면 가장 화질 좋은 시도로
+            var bestQ = trials.OrderByDescending(t => t.Ssim).FirstOrDefault();
+            if (bestQ == null) throw new InvalidOperationException("시험 인코딩에 모두 실패했습니다.");
+            return new OptimizeDecision(bestQ.Kind, bestQ.Level, bestQ.MB, bestQ.Ssim, bestQ.Speed, bestQ.MB >= srcMB * 0.92, history.Count, usedHistory, trials);
+        }
+        var best = ok.OrderBy(t => t.MB).First();
+        return new OptimizeDecision(best.Kind, best.Level, best.MB, best.Ssim, best.Speed, best.MB >= srcMB * 0.92, history.Count, usedHistory, trials);
+    }
+}

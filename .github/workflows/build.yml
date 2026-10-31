@@ -1,0 +1,52 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Version
+        id: ver
+        shell: pwsh
+        run: |
+          if ("${{ github.ref_type }}" -eq "tag") { $v = "${{ github.ref_name }}".TrimStart('v') }
+          else { $v = "0.0.${{ github.run_number }}" }
+          "version=$v" >> $env:GITHUB_OUTPUT
+
+      - name: Publish
+        run: >
+          dotnet publish src/MxCam/MxCam.csproj -c Release -r win-x64 --self-contained false
+          -p:PublishSingleFile=true -p:DebugType=none -p:Version=${{ steps.ver.outputs.version }} -o out
+
+      - name: Checksum
+        shell: pwsh
+        run: |
+          $h = (Get-FileHash out/MxCam.exe -Algorithm SHA256).Hash.ToLower()
+          Set-Content out/MxCam.exe.sha256 "$h  MxCam.exe" -NoNewline
+          Get-Content out/MxCam.exe.sha256
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MxCam-${{ steps.ver.outputs.version }}
+          path: out/*
+
+      - name: Release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: gh release create "${{ github.ref_name }}" out/MxCam.exe out/MxCam.exe.sha256 --title "MxCam ${{ github.ref_name }}" --generate-notes

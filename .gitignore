@@ -1,0 +1,19 @@
+# build output
+bin/
+obj/
+dist/
+out/
+*.user
+
+# IDE / tool state
+.vs/
+.vscode/
+.idea/
+.claude/
+.omc/
+
+# local only (상용 프로그램 분석 메모 — 공개하지 않음)
+docs/ocam-analysis.md
+
+# legacy project folder (renamed to src/MxCam)
+src/ymxCam/
