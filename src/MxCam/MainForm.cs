@@ -91,6 +91,13 @@ public sealed partial class MainForm : Form
             UpdateHint();
             if (!TestMode && _s.AutoUpdate) _ = CheckUpdateAsync();
             if (!TestMode) ApplyShellMenu();
+            if (!TestMode && _ffmpeg != null)
+            {
+                // 처음 한 번만 자동 분석 + 설명. 이후엔 PC 구성이 바뀌어도 알림만 (옵션에서 다시 분석)
+                if (_s.PcFingerprint == null) ShowPcAnalysis(automatic: true);
+                else if (PcAnalyzer.Collect(_ffmpeg).Fingerprint != _s.PcFingerprint)
+                    _lblState.Text = "PC 구성이 바뀌었습니다 — [옵션] → [내 PC 다시 분석]을 권장";
+            }
         }));
     }
 
@@ -208,6 +215,7 @@ public sealed partial class MainForm : Form
         }
         b.DropDownItems.Add(levels);
         b.DropDownItems.Add("코덱 추천 받기 (실측 비교)…", null, (_, _) => ShowRecommend());
+        b.DropDownItems.Add("내 PC 분석 (최적 코덱 다시 찾기)…", null, (_, _) => ShowPcAnalysis(automatic: false));
         b.DropDownItems.Add(new ToolStripSeparator());
 
         foreach (var group in Codecs.All.Where(p => p.Group != "소리").GroupBy(p => p.Group))
@@ -672,6 +680,15 @@ public sealed partial class MainForm : Form
         catch { }
     }
 
+    internal PcAnalysisForm? ShowPcAnalysis(bool automatic)
+    {
+        if (_rec != null || _ffmpeg == null) return null;
+        var f = new PcAnalysisForm(_s, _ffmpeg, automatic);
+        f.FormClosed += (_, _) => { _s.Save(); UpdateHint(); };
+        f.Show(this);
+        return f;
+    }
+
     void ShowConvert()
     {
         if (_rec != null) return;
@@ -686,7 +703,7 @@ public sealed partial class MainForm : Form
     void ShowOptions()
     {
         if (_rec != null) return;
-        using var dlg = new OptionsForm(_s);
+        using var dlg = new OptionsForm(_s, _ffmpeg);
         TopMost = false;
         if (dlg.ShowDialog(this) == DialogResult.OK)
         {
@@ -696,6 +713,13 @@ public sealed partial class MainForm : Form
             RegisterHotkeys();
             UpdateTooltips();
             if (!TestMode) ApplyShellMenu();
+            if (!TestMode && _ffmpeg != null)
+            {
+                // 처음 한 번만 자동 분석 + 설명. 이후엔 PC 구성이 바뀌어도 알림만 (옵션에서 다시 분석)
+                if (_s.PcFingerprint == null) ShowPcAnalysis(automatic: true);
+                else if (PcAnalyzer.Collect(_ffmpeg).Fingerprint != _s.PcFingerprint)
+                    _lblState.Text = "PC 구성이 바뀌었습니다 — [옵션] → [내 PC 다시 분석]을 권장";
+            }
             AttachToFrame();
             UpdateHint();
         }

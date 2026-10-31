@@ -85,6 +85,11 @@ public sealed class Settings
     public long BenchPixelRate { get; set; }
     public DateTime? BenchAt { get; set; }
 
+    /// <summary>내 PC 분석 결과 (처음 한 번 자동, 이후 옵션에서 다시 분석).</summary>
+    public string? PcFingerprint { get; set; }
+    public string? PcSummary { get; set; }
+    public VKind? PcBest { get; set; }
+
     public Rectangle Region
     {
         get => new(RegionX, RegionY, RegionW, RegionH);

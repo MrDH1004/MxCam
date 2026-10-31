@@ -18,6 +18,7 @@ internal sealed class RecommendForm : Form
     readonly Button _btnUse = new() { Text = "선택한 코덱 사용", AutoSize = true };
     readonly Button _btnClose = new() { Text = "닫기", AutoSize = true, DialogResult = DialogResult.Cancel };
     readonly Button _btnReset = new() { Text = "학습 초기화", AutoSize = true };
+    readonly Button _btnPc = new() { Text = "내 PC 분석", AutoSize = true };
     CancellationTokenSource? _cts;
 
     public RecommendForm(Settings s, string ffmpeg, Rectangle region)
@@ -52,7 +53,13 @@ internal sealed class RecommendForm : Form
         _list.Columns.Add("판정", 150);
 
         var buttons = new FlowLayoutPanel { Dock = DockStyle.Bottom, Height = 42, FlowDirection = FlowDirection.RightToLeft, Padding = new Padding(6) };
-        buttons.Controls.AddRange(new Control[] { _btnClose, _btnUse, _btnApply, _btnBench, _btnReset });
+        buttons.Controls.AddRange(new Control[] { _btnClose, _btnUse, _btnApply, _btnBench, _btnReset, _btnPc });
+        _btnPc.Click += (_, _) =>
+        {
+            using var f = new PcAnalysisForm(_s, _ffmpeg, automatic: false);
+            f.ShowDialog(this);
+            Refill();
+        };
         _btnReset.Click += (_, _) =>
         {
             if (MessageBox.Show(this, "녹화·변환 자가 학습 데이터를 모두 지울까요?", "MxCam", MessageBoxButtons.OKCancel) != DialogResult.OK) return;
@@ -102,7 +109,7 @@ internal sealed class RecommendForm : Form
         string basis = learned != null
             ? $"🧠 녹화 자가 학습 {learned.Sessions}회 기준 · 같은 화질에서 용량 최소"
             : bestBench?.Kind == rec.Kind
-                ? $"실측 결과 기준 ({_s.BenchAt:MM-dd HH:mm}) · 같은 화질에서 용량 최소"
+                ? (_s.PcFingerprint != null ? $"내 PC 분석 기준 ({_s.PcSummary}) · 같은 화질에서 용량 최소" : $"실측 결과 기준 ({_s.BenchAt:MM-dd HH:mm}) · 같은 화질에서 용량 최소")
                 : _s.AutoLearn ? "하드웨어 기준 — 녹화를 하면 자동으로 학습합니다 (또는 실측 테스트)" : "하드웨어/성능 기준 (실측 테스트를 하면 더 정확)";
         string auto = $" · 자동 녹화 단계 {Codecs.AutoLevel(_s, rec.Kind, W, H, _s.Fps):0.0}";
         _title.Text = $"★ 추천: {rec.Label}\n   {basis} · {W}×{H} {_s.Fps}fps · {Codecs.LevelNames[_s.Level - 1]}{auto}";

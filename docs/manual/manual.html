@@ -76,7 +76,7 @@
     <div><span class="n">4</span>녹화 영역 · 소리 · 모드</div>
     <div><span class="n">5</span>코덱과 품질 5단계</div>
     <div><span class="n">6</span>코덱 자가 학습 (자동)</div>
-    <div><span class="n">7</span>코덱 추천 (실측)</div>
+    <div><span class="n">7</span>내 PC 분석 · 코덱 추천</div>
     <div><span class="n">8</span>동영상 변환</div>
     <div><span class="n">9</span>우클릭 용량 최적화 · 자가 학습</div>
     <div><span class="n">10</span>옵션</div>
@@ -87,7 +87,7 @@
   <div class="steps">
     <div class="step"><div class="n">1</div><b>설치 파일 받기</b>GitHub 릴리스에서<br><b style="display:inline;font-size:10pt">MxCam-Setup-x.y.z.exe</b></div>
     <div class="step"><div class="n">2</div><b>설치</b>관리자 권한 없이 설치됩니다<br><span class="small">(시작 메뉴 · 바탕화면 바로가기)</span></div>
-    <div class="step"><div class="n">3</div><b>끝!</b>새 버전은 시작할 때<br>자동으로 받아 설치합니다</div>
+    <div class="step"><div class="n">3</div><b>첫 실행: 내 PC 분석</b>약 30초 동안 이 PC에 맞는<br>코덱을 찾아 설명해 줍니다 (한 번만)</div>
   </div>
   <table>
     <tr><th style="width:28%">필요한 것</th><th>설치 방법</th></tr>
@@ -96,6 +96,7 @@
     <tr><td>ffmpeg (인코더)</td><td>명령 프롬프트에서 <span class="key">winget install Gyan.FFmpeg</span><br><span class="small">또는 ffmpeg.exe를 MxCam.exe와 같은 폴더에 두기</span></td></tr>
   </table>
   <div class="note"><b>자동 업데이트</b> — MxCam을 켤 때 새 버전을 확인하고 몰래(백그라운드) 받아 둡니다. 상태 줄에 <b style="color:var(--green)">🔄 업데이트 준비됨</b>이 보이면 눌러서 바로 적용하거나, 다음에 켤 때 자동 적용됩니다. 내려받은 파일은 SHA256으로 검증합니다. 옵션에서 끌 수 있습니다.</div>
+  <div class="note"><b>내 PC 분석 (처음 한 번)</b> — 처음 실행하면 CPU·그래픽카드·메모리·화면을 파악하고, 지금 화면 3초로 코덱별 용량·화질·속도를 재서 <b>"이 PC 추천 코덱"과 그 이유</b>를 보여 줍니다. 그다음부터는 다시 하지 않습니다. 다시 하려면 [옵션] → [내 PC 다시 분석] (7장).</div>
   <div class="tip"><b>포터블 버전</b> — 설치 없이 쓰려면 <b>MxCam.exe</b>만 받아 실행하세요. 포터블도 자동 업데이트됩니다.</div>
 </section>
 
@@ -228,9 +229,9 @@
       <p>해상도·프레임 대역별(예: 1080p 30fps)로 따로 학습합니다.</p>
       <h3>추천 순서</h3>
       <table>
-        <tr><td style="width:12%"><b>①</b></td><td><b>자가 학습 결과</b> (녹화할수록 정확)</td></tr>
-        <tr><td><b>②</b></td><td>실측 테스트 결과 (7장)</td></tr>
-        <tr><td><b>③</b></td><td>그래픽카드 등 사양 기준</td></tr>
+        <tr><td style="width:12%"><b>①</b></td><td><b>내 PC 분석 결과</b> (처음 한 번 자동, 7장)</td></tr>
+        <tr><td><b>②</b></td><td><b>자가 학습</b> — 같은 코덱의 품질값을 미세 조정. 학습이 3회 이상 쌓여 다른 코덱이 더 작다는 근거가 있을 때만 코덱을 바꿈</td></tr>
+        <tr><td><b>③</b></td><td>그래픽카드 등 사양 기준 (분석 전)</td></tr>
       </table>
     </div>
     <div>
@@ -247,7 +248,25 @@
   <div class="tip">새로 녹화를 시작하면 진행 중인 학습은 바로 멈춰서 녹화에 영향을 주지 않습니다. 충분히 학습된 화면 종류는 가끔만 다시 학습합니다. 학습 데이터는 내 PC에만 저장됩니다 (%APPDATA%\MxCam\learning.json). 우클릭 "용량 최적화"와 변환 창 ★추천도 같은 학습 데이터를 씁니다.</div>
 </section>
 <section>
-  <h2><span class="no">7</span>코덱 추천 (실측)</h2>
+  <h2><span class="no">7</span>내 PC 분석 — 이 PC에 맞는 코덱을 고른 이유</h2>
+  <img class="shot" src="img/pc_analysis.png" alt="" style="max-width:88%">
+  <p class="cap">처음 실행할 때 한 번 자동으로 뜨는 "내 PC 분석" 창</p>
+  <div class="steps">
+    <div class="step"><div class="n">1</div><b>사양 파악</b>CPU · 메모리 · 그래픽카드 · 화면</div>
+    <div class="step"><div class="n">2</div><b>인코더 확인</b>NVIDIA / Intel / AMD 하드웨어<br>인코더를 실제로 시험 (✓ / ✗)</div>
+    <div class="step"><div class="n">3</div><b>실측 → 추천</b>지금 화면 3초로 같은 화질 기준<br>용량 · 속도 비교 → 이유와 함께 추천</div>
+  </div>
+  <table>
+    <tr><th style="width:30%">언제 다시 하나요?</th><th>방법</th></tr>
+    <tr><td>처음 실행</td><td>자동 (한 번만)</td></tr>
+    <tr><td>그래픽카드·ffmpeg 교체</td><td>상태 줄에 "PC 구성이 바뀌었습니다"로 알림 → 직접 다시 분석</td></tr>
+    <tr><td>원할 때</td><td><b>[옵션] → [내 PC 다시 분석]</b>, [코덱] 메뉴 → 내 PC 분석, [추천] 창 → [내 PC 분석]</td></tr>
+  </table>
+  <div class="tip">평소 녹화하는 화면(게임·영상·문서)을 띄운 상태에서 다시 분석하면 더 정확합니다.</div>
+</section>
+
+<section>
+  <h2 style="font-size:13pt">코덱 추천 창 (직접 비교)</h2>
   <img class="shot" src="img/recommend.png" alt="">
   <p class="cap">[추천] 버튼 → 코덱 추천 창</p>
   <div class="steps">
@@ -340,7 +359,8 @@
         <tr><td>녹화 중 최소화</td><td>녹화하면 MxCam 창을 숨김 (끔)</td></tr>
         <tr><td>자동 업데이트</td><td>시작할 때 새 버전 확인·설치 (켬)</td></tr>
         <tr><td>우클릭 메뉴</td><td>비디오 파일 우클릭 메뉴 (켬)</td></tr>
-        <tr><td>코덱 자가 학습</td><td>녹화 후 학습 → 자동 모드·변환 추천에 반영 (켬) — 6장</td></tr>
+        <tr><td>코덱 자가 학습</td><td>녹화 후 학습 → 자동 모드 품질값 미세 조정·변환 추천에 반영 (켬) — 6장</td></tr>
+        <tr><td>내 PC 분석</td><td>분석 요약 표시 + [내 PC 다시 분석] 버튼 — 7장</td></tr>
         <tr><td>FPS</td><td>초당 프레임 1~60 (30)</td></tr>
         <tr><td>품질 단계</td><td>1~5단계 (3 · 표준)</td></tr>
         <tr><td>커서 포함</td><td>마우스 커서도 녹화 (켬)</td></tr>

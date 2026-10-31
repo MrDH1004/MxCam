@@ -23,7 +23,7 @@ public static class Recommender
     };
 
     public static async Task<List<BenchResult>> RunAsync(Settings s, string ffmpeg, Rectangle region, int seconds,
-        IProgress<string> progress, CancellationToken ct)
+        IProgress<string> progress, CancellationToken ct, VKind[]? candidates = null)
     {
         string dir = Path.Combine(Path.GetTempPath(), "mxcam_bench_" + Guid.NewGuid().ToString("N")[..6]);
         Directory.CreateDirectory(dir);
@@ -49,7 +49,7 @@ public static class Recommender
             double duration = ProbeDuration(ffmpeg, reference);
             if (duration <= 0) throw new InvalidOperationException("기준 영상 캡처 실패");
 
-            var kinds = Candidates.Where(Codecs.IsVideoAvailable).ToList();
+            var kinds = (candidates ?? Candidates).Where(Codecs.IsVideoAvailable).ToList();
             foreach (var k in kinds)
             {
                 ct.ThrowIfCancellationRequested();

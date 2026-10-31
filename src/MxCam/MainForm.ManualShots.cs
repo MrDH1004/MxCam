@@ -1,4 +1,4 @@
-using System.Drawing.Imaging;
+﻿using System.Drawing.Imaging;
 
 namespace MxCam;
 
@@ -43,7 +43,17 @@ public sealed partial class MainForm
         await SaveMenu(_btnSound, Path.Combine(dir, "menu_sound.png"));
         await SaveMenu(_btnMode, Path.Combine(dir, "menu_mode.png"));
 
-        using (var opt = new OptionsForm(_s))
+        using (var pf = new PcAnalysisForm(_s, _ffmpeg!, automatic: true))
+        {
+            pf.Show(this);
+            await Until(() => pf.Finished, 240000);
+            await Task.Delay(300);
+            Save(pf, Path.Combine(dir, "pc_analysis.png"));
+            File.WriteAllText(Path.Combine(dir, "pc_check.txt"), $"fingerprint={_s.PcFingerprint}\nsummary={_s.PcSummary}\nbest={_s.PcBest}\nbasis={Codecs.RecommendBasis(_s, 1920, 1080, 30)}\nauto={Codecs.AutoProfile(_s, 1920, 1080, 30).Name}");
+        }
+        UpdateHint();
+        Save(this, Path.Combine(dir, "main.png"));
+        using (var opt = new OptionsForm(_s, _ffmpeg))
         {
             opt.Show(this);
             await Task.Delay(400);

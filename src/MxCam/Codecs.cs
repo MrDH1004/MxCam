@@ -387,9 +387,16 @@ public static class Codecs
 
     /// <summary>녹화 학습 결과 (이 해상도·프레임 대역에서 실시간 가능 + 목표 화질 + 최소 용량). 학습 꺼짐/데이터 없음이면 null.</summary>
     public static Learned? LearnedFor(Settings s, int w, int h, int fps) =>
-        s.AutoLearn ? Learning.Best(Learning.RecClass(w, h, fps), s.Level, Recommender.RealtimeMargin) : null;
+        s.AutoLearn && Learning.Best(Learning.RecClass(w, h, fps), s.Level, Recommender.RealtimeMargin) is { Sessions: >= 3 } l ? l : null;
 
-    /// <summary>추천 우선순위: ① 녹화 학습 결과 ② 실측 테스트 ③ 하드웨어 기준.</summary>
+    /// <summary>특정 코덱의 학습된 품질값 (학습 1회 이상이면 사용).</summary>
+    static Learned? LearnedForKind(Settings s, VKind kind, int w, int h, int fps) =>
+        s.AutoLearn ? Learning.Ranking(Learning.RecClass(w, h, fps), s.Level, Recommender.RealtimeMargin).FirstOrDefault(x => x.Kind == kind) : null;
+
+    /// <summary>
+    /// 추천 우선순위: ① 내 PC 분석(실측) ② 하드웨어 기준. 단, 녹화 자가 학습이 3회 이상 쌓여
+    /// 다른 코덱이 더 작다는 근거가 있으면 그 코덱으로 (학습은 보조).
+    /// </summary>
     public static VideoEncoderInfo Recommended(Settings s, int w, int h, int fps)
     {
         if (LearnedFor(s, w, h, fps) is { } l) return Video(l.Kind);
@@ -400,14 +407,14 @@ public static class Codecs
 
     /// <summary>추천 근거 (화면 표시용).</summary>
     public static string RecommendBasis(Settings s, int w, int h, int fps) =>
-        LearnedFor(s, w, h, fps) is { } l ? $"학습 {l.Sessions}회" : HasBench(s) ? "실측" : "사양 기준";
+        LearnedFor(s, w, h, fps) is { } l ? $"학습 {l.Sessions}회" : HasBench(s) ? (s.PcFingerprint != null ? "PC 분석" : "실측") : "사양 기준";
 
     /// <summary>
     /// 자동 모드에서 실제로 쓸 (소수) 품질 단계: 실측이 있으면 선택 단계의 기준 화질(x264)을 내도록 보정.
     /// 예) VP9가 3단계에서 기준보다 훨씬 고화질·대용량이면 더 낮은 단계로 내려 같은 화질·더 작은 용량으로 녹화.
     /// </summary>
     public static double AutoLevel(Settings s, VKind kind, int w, int h, int fps) =>
-        LearnedFor(s, w, h, fps) is { } l && l.Kind == kind ? l.Level : AutoLevelFor(s, kind, s.Level);
+        LearnedForKind(s, kind, w, h, fps) is { } l ? l.Level : AutoLevelFor(s, kind, s.Level);
 
     /// <summary>임의 단계에 대한 보정 단계 (변환 기능에서 사용).</summary>
     public static double AutoLevelFor(Settings s, VKind kind, int level)

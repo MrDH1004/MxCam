@@ -56,7 +56,7 @@ internal sealed class OptionsForm : Form
         return c;
     }
 
-    public OptionsForm(Settings s)
+    public OptionsForm(Settings s, string? ffmpeg = null)
     {
         _s = s;
         Text = $"MxCam {AppInfo.VersionText} - 옵션";
@@ -124,6 +124,19 @@ internal sealed class OptionsForm : Form
             if (d.ShowDialog(this) == DialogResult.OK) _wm.Text = d.FileName;
         }));
         Row("", Flow(Lbl("불투명도"), _wmOpacity, Lbl("%   위치"), _wmPos));
+
+        Section("내 PC 분석");
+        var pcLabel = new Label { AutoSize = true, MaximumSize = new Size(420, 0), Margin = new Padding(3, 7, 3, 3),
+            Text = s.PcFingerprint == null ? "아직 분석하지 않음" : $"{s.PcSummary}\n→ 추천: {(s.PcBest is { } pb ? Codecs.Video(pb).Label : "-")}" };
+        var btnPc = new Button { Text = "내 PC 다시 분석", AutoSize = true, Enabled = ffmpeg != null };
+        btnPc.Click += (_, _) =>
+        {
+            using var f = new PcAnalysisForm(_s, ffmpeg!, automatic: false);
+            f.ShowDialog(this);
+            pcLabel.Text = $"{_s.PcSummary}\n→ 추천: {(_s.PcBest is { } b ? Codecs.Video(b).Label : "-")}";
+        };
+        Row("", pcLabel);
+        Row("", btnPc);
 
         Section("녹화 시간 제한");
         Row("제한 시간", Flow(_limitMin, Lbl("분"), _limitSec, Lbl("초  (0 = 제한 없음)")));
