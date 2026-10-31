@@ -4,7 +4,10 @@
 
 ## 다운로드
 
-[최신 릴리스](https://github.com/MrDH1004/MxCam/releases/latest)에서 `MxCam.exe`를 받아 실행하세요.
+[최신 릴리스](https://github.com/MrDH1004/MxCam/releases/latest)에서
+- **설치판** `MxCam-Setup-x.y.z.exe` (권장) — 관리자 권한 없이 설치, 시작 메뉴/바탕화면 바로가기, 제거 지원
+- **포터블** `MxCam.exe` — 설치 없이 바로 실행
+
 한 번 설치하면 새 버전이 나올 때 **자동으로 업데이트**됩니다 (시작 시 확인 → 다운로드·SHA256 검증 → 재시작 시 적용).
 
 ### 필요한 것

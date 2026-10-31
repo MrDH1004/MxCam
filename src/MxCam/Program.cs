@@ -14,6 +14,13 @@ internal static class Program
         if (args.Length > 0 && args[0] == "--updatecheck")
             return UpdateCheck(args.Length > 1 ? args[1] : Path.Combine(AppContext.BaseDirectory, "update.log"));
 
+        // 제거 프로그램에서 호출: 탐색기 우클릭 메뉴 삭제
+        if (args.Length > 0 && args[0] == "--unregister")
+        {
+            ShellIntegration.Unregister();
+            return 0;
+        }
+
         // 탐색기 우클릭 메뉴에서 호출 (녹화 창과 별개로 여러 개 동시 실행 가능)
         if (args.Length > 1 && args[0] == "--optimize")
         {
@@ -55,7 +62,7 @@ internal static class Program
         w.WriteLine($"current {AppInfo.VersionText}");
         var u = Updater.CheckAsync().GetAwaiter().GetResult();
         if (u == null) { w.WriteLine("no update"); return 0; }
-        w.WriteLine($"latest {u.Tag} {u.ExeUrl}");
+        w.WriteLine($"latest {u.Tag} installed={Updater.IsInstalled} setup={u.SetupUrl} exe={u.ExeUrl}");
         bool ok = Updater.DownloadAsync(u).GetAwaiter().GetResult();
         w.WriteLine(ok ? "downloaded+verified" : "download failed");
         return ok ? 0 : 1;
