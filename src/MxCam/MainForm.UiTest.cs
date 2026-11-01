@@ -71,6 +71,15 @@ public sealed partial class MainForm
         return _lastSaved;
     }
 
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    static extern void mouse_event(uint flags, int dx, int dy, uint data, IntPtr extra);
+
+    static void MouseClick()
+    {
+        mouse_event(0x02, 0, 0, 0, IntPtr.Zero);
+        mouse_event(0x04, 0, 0, 0, IntPtr.Zero);
+    }
+
     static void PressKey(Keys k)
     {
         Native.keybd_event((byte)k, 0, 0, IntPtr.Zero);
@@ -92,7 +101,14 @@ public sealed partial class MainForm
         RegisterHotkeys();
         try
         {
-            await RunUiTestCore(outDir);
+            if (Environment.GetEnvironmentVariable("MXCAM_UITEST_ONLY") == "frame")
+            {
+                var sc = Screen.PrimaryScreen!.Bounds;
+                SetRegion(new Rectangle(sc.X + 300, sc.Y + 250, 640, 360));
+                await Task.Delay(300);
+                await FrameTestsAsync();
+            }
+            else await RunUiTestCore(outDir);
         }
         catch (Exception ex)
         {
@@ -145,13 +161,7 @@ public sealed partial class MainForm
         T("영역을 옮겨도 툴바는 그대로", Location == toolbarPos, $"{toolbarPos} → {Location}");
         T("영역 설정 저장", _s.Region == _frame.CaptureRect);
 
-        // ── 4. 녹화 영역 테두리 (크기 조절/이동 판정) ──
-        var b = _frame.Bounds;
-        int Hit(int x, int y) => (int)SendHit(_frame.Handle, x, y);
-        T("테두리: 왼쪽 위 모서리 = 크기 조절", Hit(b.Left + 2, b.Top + 2) == 13);
-        T("테두리: 오른쪽 아래 모서리 = 크기 조절", Hit(b.Right - 3, b.Bottom - 3) == 17);
-        T("테두리: 오른쪽 변 = 크기 조절", Hit(b.Right - 2, b.Top + b.Height / 2 + 30) == 11);
-        T("테두리: 가운데 크기 표시 = 이동", Hit(b.Left + b.Width / 2, b.Top + b.Height / 2) == 2);
+        await FrameTestsAsync();
 
         // ── 5. 코덱 / 품질 / 소리 / 모드 메뉴 ──
         T("코덱 선택: H.264 x264 MP4", await ClickMenu(_btnCodec, "H.264 x264 + AAC (.MP4)") && _s.CodecId == "mp4_x264");
@@ -485,6 +495,41 @@ public sealed partial class MainForm
         _s.TimeLimitSeconds = 2; _s.TimeLimitAction = LimitAction.Exit;
         _btnRecord.PerformClick();
         T("시간 제한 후 프로그램 종료", await Until(() => IsDisposed || _closingForTest, 10000));
+    }
+
+
+    internal async Task FrameTestsAsync()
+    {
+        // ── 4. 녹화 영역 테두리 (크기 조절/이동 판정) ──
+        var b = _frame.Bounds;
+        int Hit(int x, int y) => (int)SendHit(_frame.Handle, x, y);
+        T("점: 왼쪽 위 = 크기 조절", Hit(b.Left + 10, b.Top + 10) == 13);
+        T("점: 오른쪽 아래 = 크기 조절", Hit(b.Right - 11, b.Bottom - 11) == 17);
+        T("점: 오른쪽 가운데 = 크기 조절", Hit(b.Right - 11, b.Top + b.Height / 2) == 11);
+        T("점: 위 가운데 = 크기 조절", Hit(b.Left + b.Width / 2, b.Top + 10) == 12);
+        T("테두리 선 = 이동", Hit(b.Left + b.Width / 4, b.Top + 1) == 2 && Hit(b.Left + 1, b.Top + b.Height / 4) == 2);
+        T("가운데 이동 아이콘 = 이동", Hit(b.Left + b.Width / 2, b.Top + b.Height / 2) == 2);
+        var innerPt = new Point(b.Width / 4, b.Height / 3);
+        T("안쪽 빈 곳 = 창 모양에서 제외 (클릭 통과)", _frame.Region != null && !_frame.Region.IsVisible(innerPt) && _frame.HitTest(innerPt) == -1);
+        // 실제 클릭: 영역 안쪽 뒤에 있는 창이 클릭을 받는지
+        {
+            bool clicked = false;
+            using var behind = new Form { FormBorderStyle = FormBorderStyle.None, StartPosition = FormStartPosition.Manual, Bounds = _frame.CaptureRect, ShowInTaskbar = false, BackColor = Color.DimGray };
+            behind.MouseDown += (_, _) => clicked = true;
+            behind.Show();
+            _frame.BringToFront();
+            await Task.Delay(400);
+            var pt = new Point(b.Left + b.Width / 4, b.Top + b.Height / 3);
+            var oldPos = Cursor.Position;
+            Cursor.Position = pt;
+            await Task.Delay(100);
+            MouseClick();
+            await Until(() => clicked, 2000);
+            Cursor.Position = oldPos;
+            behind.Close();
+            T("실제 클릭: 영역 안쪽 클릭이 뒤 창으로 통과", clicked);
+        }
+
     }
 
     bool _closingForTest, _testDone;

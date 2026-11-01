@@ -1,19 +1,26 @@
 ﻿using System.Drawing.Drawing2D;
+using System.Drawing.Text;
 
 namespace MxCam;
 
 /// <summary>
-/// 녹화 영역 표시 테두리. 안쪽은 색상 키로 투명 + 클릭 통과, 창 전체는 화면 캡처에서 제외되어 영상에 찍히지 않는다.
-/// 테두리/모서리 핸들로 크기 조절, 가운데 크기 표시를 잡고 이동.
+/// 녹화 영역 표시 테두리 (oCam과 같은 조작).
+///  · 점 8개: 드래그해서 크기 조절
+///  · 테두리 선 / 가운데 이동 아이콘: 드래그해서 이동
+///  · 나머지 안쪽: 창 모양(Region)에서 아예 잘라내서 클릭이 뒤 창으로 그대로 통과
+/// 창 전체는 화면 캡처에서 제외되어 영상에 찍히지 않는다.
 /// </summary>
 public sealed class RegionFrame : Form
 {
     public const int B = 4;          // 캡처 영역 바깥 테두리 두께
-    const int Grip = 12;
-    static readonly Color Key = Color.FromArgb(255, 1, 254);
-    static readonly Color Idle = Color.FromArgb(34, 197, 94);
+    const int Band = 2;              // 테두리 안쪽으로 더 잡히는 폭 (선을 잡기 쉽게)
+    const int Dot = 9;               // 크기 조절 점 크기
+    const int DotInset = 10;         // 점 중심이 바깥 가장자리에서 떨어진 거리
+    static readonly Color Idle = Color.FromArgb(132, 204, 22);
+    static readonly Color DotFill = Color.FromArgb(236, 252, 203);
     static readonly Color Rec = Color.FromArgb(239, 68, 68);
     static readonly Color Paused = Color.FromArgb(245, 158, 11);
+    static readonly string IconFont = new InstalledFontCollection().Families.Any(f => f.Name == "Segoe Fluent Icons") ? "Segoe Fluent Icons" : "Segoe MDL2 Assets";
 
     bool _recording, _paused;
     string _overlay = "";
@@ -26,10 +33,9 @@ public sealed class RegionFrame : Form
         ShowInTaskbar = false;
         TopMost = true;
         StartPosition = FormStartPosition.Manual;
-        BackColor = Key;
-        TransparencyKey = Key;
+        BackColor = Idle;
         DoubleBuffered = true;
-        MinimumSize = new Size(64 + 2 * B, 48 + 2 * B);
+        MinimumSize = new Size(120 + 2 * B, 90 + 2 * B);
         Text = "MxCam 녹화 영역";
         Font = new Font("Segoe UI", 9f, FontStyle.Bold);
     }
@@ -50,6 +56,7 @@ public sealed class RegionFrame : Form
     {
         base.OnHandleCreated(e);
         Native.ExcludeFromCapture(Handle);
+        UpdateShape();
     }
 
     /// <summary>실제로 녹화되는 화면 좌표 영역 (테두리 안쪽).</summary>
@@ -62,7 +69,7 @@ public sealed class RegionFrame : Form
     public bool Recording
     {
         get => _recording;
-        set { _recording = value; Invalidate(); }
+        set { _recording = value; UpdateShape(); Invalidate(); }
     }
 
     public bool IsPaused
@@ -74,59 +81,88 @@ public sealed class RegionFrame : Form
     public string OverlayText
     {
         get => _overlay;
-        set { if (_overlay != value) { _overlay = value; Invalidate(LabelRect()); } }
+        set { if (_overlay != value) { _overlay = value; UpdateShape(); Invalidate(); } }
     }
 
-    Rectangle LabelRect()
+    // ───────────── 모양 ─────────────
+
+    /// <summary>점 8개: 왼위, 위, 오른위, 오른, 오른아래, 아래, 왼아래, 왼 (HitTest 코드 순서와 같음).</summary>
+    Rectangle[] Dots()
     {
-        var text = LabelText();
-        var size = TextRenderer.MeasureText(text, Font);
-        int w = size.Width + 16, h = size.Height + 8;
-        return new Rectangle((Width - w) / 2, (Height - h) / 2, w, h);
+        int w = Width, h = Height, c = DotInset, s = Dot;
+        Rectangle At(int x, int y) => new(x - s / 2, y - s / 2, s, s);
+        return new[]
+        {
+            At(c, c), At(w / 2, c), At(w - 1 - c, c), At(w - 1 - c, h / 2),
+            At(w - 1 - c, h - 1 - c), At(w / 2, h - 1 - c), At(c, h - 1 - c), At(c, h / 2),
+        };
     }
+    static readonly int[] DotCodes = { 13, 12, 14, 11, 17, 15, 16, 10 }; // HTTOPLEFT, HTTOP, HTTOPRIGHT, HTRIGHT, HTBOTTOMRIGHT, HTBOTTOM, HTBOTTOMLEFT, HTLEFT
 
-    string LabelText()
+    Rectangle MoveIcon() => new(Width / 2 - 14, Height / 2 - 14, 28, 28);
+
+    string SizeText()
     {
         var r = CaptureRect;
         string size = $"{r.Width & ~1} × {r.Height & ~1}";
         return string.IsNullOrEmpty(_overlay) ? size : $"{_overlay}   {size}";
     }
 
+    Rectangle SizeLabel()
+    {
+        var sz = TextRenderer.MeasureText(SizeText(), Font);
+        int w = sz.Width + 14, h = sz.Height + 6;
+        return new Rectangle((Width - w) / 2, Height / 2 + 18, w, h);
+    }
+
+    Rectangle Inner() => new(B + Band, B + Band, Width - 2 * (B + Band), Height - 2 * (B + Band));
+
+    /// <summary>창 모양 = 테두리 띠 + (대기 중) 점 8개 + 가운데 이동 아이콘·크기 표시. 나머지는 잘라냄 → 클릭 통과.</summary>
+    void UpdateShape()
+    {
+        if (!IsHandleCreated || Width <= 0 || Height <= 0) return;
+        var rgn = new Region(new Rectangle(0, 0, Width, Height));
+        rgn.Exclude(Inner());
+        if (!_recording)
+        {
+            foreach (var d in Dots()) rgn.Union(Rectangle.Inflate(d, 1, 1));
+            rgn.Union(MoveIcon());
+            rgn.Union(SizeLabel());
+        }
+        var old = Region;
+        Region = rgn;
+        old?.Dispose();
+    }
+
     protected override void OnPaint(PaintEventArgs e)
     {
         var g = e.Graphics;
+        g.SmoothingMode = SmoothingMode.AntiAlias;
         var color = _recording ? (_paused ? Paused : Rec) : Idle;
-        using (var pen = new Pen(color, B) { Alignment = PenAlignment.Inset })
-            g.DrawRectangle(pen, 0, 0, Width, Height);
+        g.Clear(color);
+        if (_recording) return;
 
-        if (!_recording)
-        {
-            using var br = new SolidBrush(color);
-            foreach (var h in Handles()) g.FillRectangle(br, h);
-        }
+        using (var fill = new SolidBrush(DotFill))
+        using (var edge = new Pen(Color.FromArgb(77, 124, 15)))
+            foreach (var d in Dots())
+            {
+                g.FillRectangle(fill, d);
+                g.DrawRectangle(edge, d.X, d.Y, d.Width - 1, d.Height - 1);
+            }
 
-        // 가운데 크기/상태 표시 (녹화 중엔 화면을 가리지 않게 숨김)
-        if (!_recording)
-        {
-            var lr = LabelRect();
-            using var bg = new SolidBrush(Color.FromArgb(32, 32, 36));
-            g.FillRectangle(bg, lr);
-            TextRenderer.DrawText(g, LabelText(), Font, lr, Color.White, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
-        }
+        // 가운데 이동 아이콘
+        var mi = MoveIcon();
+        using (var bg = new SolidBrush(Color.FromArgb(32, 32, 36))) g.FillRectangle(bg, mi);
+        using (var icon = new Font(IconFont, 15f, GraphicsUnit.Pixel))
+            TextRenderer.DrawText(g, "", icon, mi, color, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+
+        // 크기 표시
+        var sl = SizeLabel();
+        using (var bg = new SolidBrush(Color.FromArgb(32, 32, 36))) g.FillRectangle(bg, sl);
+        TextRenderer.DrawText(g, SizeText(), Font, sl, Color.White, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
     }
 
-    IEnumerable<Rectangle> Handles()
-    {
-        int w = Width, h = Height, s = Grip;
-        yield return new Rectangle(0, 0, s, s);
-        yield return new Rectangle(w - s, 0, s, s);
-        yield return new Rectangle(0, h - s, s, s);
-        yield return new Rectangle(w - s, h - s, s, s);
-        yield return new Rectangle((w - s) / 2, 0, s, B + 3);
-        yield return new Rectangle((w - s) / 2, h - B - 3, s, B + 3);
-        yield return new Rectangle(0, (h - s) / 2, B + 3, s);
-        yield return new Rectangle(w - B - 3, (h - s) / 2, B + 3, s);
-    }
+    // ───────────── 마우스 ─────────────
 
     protected override void WndProc(ref Message m)
     {
@@ -139,23 +175,17 @@ public sealed class RegionFrame : Form
         base.WndProc(ref m);
     }
 
-    int HitTest(Point p)
+    /// <summary>점 → 크기 조절, 테두리 선·이동 아이콘·크기 표시 → 이동, 그 밖(안쪽) → 통과.</summary>
+    internal int HitTest(Point p)
     {
-        const int HTCLIENT = 1, HTCAPTION = 2, HTLEFT = 10, HTRIGHT = 11, HTTOP = 12, HTTOPLEFT = 13, HTTOPRIGHT = 14,
-            HTBOTTOM = 15, HTBOTTOMLEFT = 16, HTBOTTOMRIGHT = 17;
-        if (_recording) return HTCLIENT; // 녹화 중엔 영역 고정
-        if (LabelRect().Contains(p)) return HTCAPTION;
-        int g = Grip;
-        bool l = p.X < g, r = p.X >= Width - g, t = p.Y < g, b = p.Y >= Height - g;
-        if (t && l) return HTTOPLEFT;
-        if (t && r) return HTTOPRIGHT;
-        if (b && l) return HTBOTTOMLEFT;
-        if (b && r) return HTBOTTOMRIGHT;
-        if (l) return HTLEFT;
-        if (r) return HTRIGHT;
-        if (t) return HTTOP;
-        if (b) return HTBOTTOM;
-        return HTCAPTION;
+        const int HTTRANSPARENT = -1, HTCLIENT = 1, HTCAPTION = 2;
+        if (_recording) return Inner().Contains(p) ? HTTRANSPARENT : HTCLIENT; // 녹화 중엔 영역 고정
+        var dots = Dots();
+        for (int i = 0; i < dots.Length; i++)
+            if (Rectangle.Inflate(dots[i], 3, 3).Contains(p)) return DotCodes[i];
+        if (MoveIcon().Contains(p) || SizeLabel().Contains(p)) return HTCAPTION;
+        if (!Inner().Contains(p)) return HTCAPTION; // 테두리 선
+        return HTTRANSPARENT;
     }
 
     protected override void OnResizeEnd(EventArgs e)
@@ -167,12 +197,7 @@ public sealed class RegionFrame : Form
     protected override void OnSizeChanged(EventArgs e)
     {
         base.OnSizeChanged(e);
-        Invalidate();
-    }
-
-    protected override void OnMove(EventArgs e)
-    {
-        base.OnMove(e);
+        UpdateShape();
         Invalidate();
     }
 }

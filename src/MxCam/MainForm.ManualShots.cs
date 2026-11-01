@@ -94,7 +94,24 @@ public sealed partial class MainForm
             await Task.Delay(200);
             Save(of, Path.Combine(dir, "optimize.png"));
         }
-        // 녹화 영역 테두리
-        Save(_frame, Path.Combine(dir, "frame.png"));
+        await SaveFrameShotAsync(Path.Combine(dir, "frame.png"));
+    }
+
+    /// <summary>녹화 영역 테두리 그림 (매뉴얼용: 작은 영역으로 그려 점·아이콘이 잘 보이게, 창 모양 밖은 투명).</summary>
+    internal async Task SaveFrameShotAsync(string path)
+    {
+        var keep = _frame.CaptureRect;
+        _frame.CaptureRect = new Rectangle(keep.X, keep.Y, 360, 200);
+        await Task.Delay(200);
+        using (var bmp = new Bitmap(_frame.Width, _frame.Height))
+        {
+            _frame.DrawToBitmap(bmp, new Rectangle(0, 0, _frame.Width, _frame.Height));
+            var rgn = _frame.Region;
+            for (int y = 0; y < bmp.Height; y++)
+                for (int x = 0; x < bmp.Width; x++)
+                    if (rgn != null && !rgn.IsVisible(x, y)) bmp.SetPixel(x, y, Color.Transparent);
+            _frame.CaptureRect = keep;
+            bmp.Save(path, ImageFormat.Png);
+        }
     }
 }
