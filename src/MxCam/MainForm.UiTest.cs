@@ -101,7 +101,36 @@ public sealed partial class MainForm
         RegisterHotkeys();
         try
         {
-            if (Environment.GetEnvironmentVariable("MXCAM_UITEST_ONLY") == "frame")
+            if (Environment.GetEnvironmentVariable("MXCAM_UITEST_ONLY") == "click")
+            {
+                using var other = new Form { Text = "다른 창", StartPosition = FormStartPosition.Manual, Bounds = new Rectangle(Right + 20, Top, 300, 200), TopMost = false };
+                other.Show();
+                other.Activate();
+                await Task.Delay(500);
+                T("준비: MxCam 창이 비활성 상태", Form.ActiveForm != this, Form.ActiveForm?.Text ?? "(없음)");
+                var btn = _btnCapture.Bounds;
+                var pt = _bar.PointToScreen(new Point(btn.X + btn.Width / 2, btn.Y + btn.Height / 2));
+                string? before = _lastSaved;
+                var old = Cursor.Position;
+                Cursor.Position = pt;
+                await Task.Delay(150);
+                MouseClick();
+                bool once = await Until(() => _lastSaved != before, 2000);
+                Cursor.Position = old;
+                T("비활성 상태에서 [캡처] 버튼 한 번 클릭으로 바로 동작", once, _lastSaved ?? "동작 안 함");
+                // 진단: 활성 상태에서 같은 좌표 클릭
+                Activate();
+                await Task.Delay(400);
+                before = _lastSaved;
+                Cursor.Position = pt;
+                await Task.Delay(150);
+                MouseClick();
+                bool active = await Until(() => _lastSaved != before, 2000);
+                Cursor.Position = old;
+                T("(진단) 활성 상태에서 같은 좌표 클릭", active, $"pt={pt} form={Bounds} active={Form.ActiveForm?.Text} err={string.Join("/", Errors)}");
+                other.Close();
+            }
+            else if (Environment.GetEnvironmentVariable("MXCAM_UITEST_ONLY") == "frame")
             {
                 var sc = Screen.PrimaryScreen!.Bounds;
                 SetRegion(new Rectangle(sc.X + 300, sc.Y + 250, 640, 360));

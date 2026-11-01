@@ -7,9 +7,9 @@ public sealed partial class MainForm : Form
 {
     readonly Settings _s = Settings.Load();
     readonly RegionFrame _frame = new();
-    readonly ToolStrip _bar = new();
+    readonly ClickThroughToolStrip _bar = new();
     readonly Label _hint = new();
-    readonly StatusStrip _status = new();
+    readonly ClickThroughStatusStrip _status = new();
     readonly ToolStripStatusLabel _lblState = new() { Spring = true, TextAlign = ContentAlignment.MiddleLeft };
     readonly ToolStripStatusLabel _lblSize = new();
     readonly ToolStripStatusLabel _lblCodec = new();
@@ -820,6 +820,28 @@ internal static class Glyphs
         return bmp;
     }
 
+}
+
+/// <summary>
+/// 창이 비활성일 때도 첫 클릭이 바로 버튼에 전달되는 툴바.
+/// (기본 ToolStrip은 WM_MOUSEACTIVATE에 MA_ACTIVATEANDEAT를 돌려줘 첫 클릭을 창 활성화에만 쓰고 버림)
+/// </summary>
+internal sealed class ClickThroughToolStrip : ToolStrip
+{
+    protected override void WndProc(ref Message m)
+    {
+        base.WndProc(ref m);
+        if (m.Msg == 0x21 && m.Result == (IntPtr)2) m.Result = (IntPtr)1; // WM_MOUSEACTIVATE: MA_ACTIVATEANDEAT → MA_ACTIVATE
+    }
+}
+
+internal sealed class ClickThroughStatusStrip : StatusStrip
+{
+    protected override void WndProc(ref Message m)
+    {
+        base.WndProc(ref m);
+        if (m.Msg == 0x21 && m.Result == (IntPtr)2) m.Result = (IntPtr)1;
+    }
 }
 
 internal sealed class SizeDialog : Form
