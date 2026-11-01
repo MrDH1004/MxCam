@@ -386,8 +386,18 @@ public static class Codecs
     static bool HasBench(Settings s) => s.Bench.Any(b => b.Error == null && b.Ssim.All(v => v > 0));
 
     /// <summary>녹화 학습 결과 (이 해상도·프레임 대역에서 실시간 가능 + 목표 화질 + 최소 용량). 학습 꺼짐/데이터 없음이면 null.</summary>
-    public static Learned? LearnedFor(Settings s, int w, int h, int fps) =>
-        s.AutoLearn && Learning.Best(Learning.RecClass(w, h, fps), s.Level, Recommender.RealtimeMargin) is { Sessions: >= 3 } l ? l : null;
+    public static Learned? LearnedFor(Settings s, int w, int h, int fps)
+    {
+        if (!s.AutoLearn) return null;
+        var rank = Learning.Ranking(Learning.RecClass(w, h, fps), s.Level, Recommender.RealtimeMargin);
+        var best = rank.FirstOrDefault();
+        if (best == null || best.Sessions < 3) return null;
+        // 녹화는 그래픽카드 인코더 우선 (CPU 인코더가 15% 이상 작을 때만 CPU)
+        if (!Video(best.Kind).Hardware && rank.FirstOrDefault(x => Video(x.Kind).Hardware && x.Sessions >= 3) is { } hw
+            && best.Ratio > hw.Ratio * (1 - Recommender.HardwarePreference))
+            best = hw;
+        return best;
+    }
 
     /// <summary>특정 코덱의 학습된 품질값 (학습 1회 이상이면 사용).</summary>
     static Learned? LearnedForKind(Settings s, VKind kind, int w, int h, int fps) =>
@@ -414,7 +424,7 @@ public static class Codecs
     /// 예) VP9가 3단계에서 기준보다 훨씬 고화질·대용량이면 더 낮은 단계로 내려 같은 화질·더 작은 용량으로 녹화.
     /// </summary>
     public static double AutoLevel(Settings s, VKind kind, int w, int h, int fps) =>
-        LearnedForKind(s, kind, w, h, fps) is { } l ? l.Level : AutoLevelFor(s, kind, s.Level);
+        Recommender.GuardLevel(LearnedForKind(s, kind, w, h, fps) is { } l ? l.Level : AutoLevelFor(s, kind, s.Level), s.Level);
 
     /// <summary>임의 단계에 대한 보정 단계 (변환 기능에서 사용).</summary>
     public static double AutoLevelFor(Settings s, VKind kind, int level)
@@ -422,7 +432,7 @@ public static class Codecs
         if (!HasBench(s)) return level;
         Recommender.Decide(s.Bench, level);
         var b = s.Bench.FirstOrDefault(r => r.Kind == kind && r.Error == null && r.MBAtTarget > 0);
-        return b?.CalibratedLevel ?? level;
+        return Recommender.GuardLevel(b?.CalibratedLevel ?? level, level);
     }
 
     /// <summary>자동 모드가 실제로 사용할 프로필 (추천 인코더 + AAC, MP4).</summary>

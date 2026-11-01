@@ -163,7 +163,7 @@ public static class Converter
                 {
                     var li = Codecs.Video(l.Kind);
                     return new ConvertPlan { Preset = preset, Video = l.Kind, Ext = l.Kind == VKind.Vp9 ? "webm" : "mp4",
-                        Title = $"{li.Label} (학습 {l.Sessions}회)", Level = level, VideoLevel = l.Level };
+                        Title = $"{li.Label} (학습 {l.Sessions}회)", Level = level, VideoLevel = Math.Max(l.Level, level - 1.0) };
                 }
                 var best = Codecs.Recommended(s, src.Width, src.Height, fps);
                 return new ConvertPlan { Preset = preset, Video = best.Kind, Ext = best.Kind == VKind.Vp9 ? "webm" : "mp4",

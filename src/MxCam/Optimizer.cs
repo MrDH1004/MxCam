@@ -197,9 +197,11 @@ public static class Optimizer
             ct.ThrowIfCancellationRequested();
             idx++;
             var info = Codecs.Video(kind);
-            double start = learned.FirstOrDefault(x => x.kind == kind).level is > 0 and var l ? l : 3;
+            // 품질 하한: SSIM은 질감 손실(뿌옇게 뭉개짐)을 잘 못 잡으므로 선택 단계보다 1단계 넘게 낮추지 않는다
+            double floor = Math.Max(1, level - 1.0);
+            double start = Math.Max(floor, learned.FirstOrDefault(x => x.kind == kind).level is > 0 and var l ? l : 3);
             // 품질값 이분 탐색: lo = 목표 미달 단계, hi = 목표 만족 단계
-            double lo = 0.5, hi = 5.5, cur = start;
+            double lo = floor - 0.5, hi = 5.5, cur = start;
             for (int step = 0; step < 4; step++)
             {
                 ct.ThrowIfCancellationRequested();
@@ -211,8 +213,8 @@ public static class Optimizer
                 trials.Add(t);
                 newRecords.Add(new LearnRecord { Class = cls, Kind = kind, Level = t.Level, Ssim = t.Ssim, SizeRatio = t.MB / srcMB, Speed = t.Speed, At = DateTime.Now, Session = session });
                 if (r.Ssim >= target) hi = Math.Min(hi, cur); else lo = Math.Max(lo, cur);
-                if (hi - lo <= 0.6 || (cur <= 1 && r.Ssim >= target) || (cur >= 5 && r.Ssim < target)) break;
-                cur = hi > 5 ? Math.Min(5, cur + 1.5) : lo < 1 ? Math.Max(1, cur - 1.5) : (lo + hi) / 2;
+                if (hi - lo <= 0.6 || (cur <= floor && r.Ssim >= target) || (cur >= 5 && r.Ssim < target)) break;
+                cur = hi > 5 ? Math.Min(5, cur + 1.5) : lo < floor ? Math.Max(floor, cur - 1.5) : (lo + hi) / 2;
             }
         }
         Learning.Add(newRecords);

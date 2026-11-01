@@ -177,10 +177,26 @@ public static class Recommender
         var ok = results.Where(r => Valid(r) && r.Realtime && r.State <= 0).ToList();
         if (ok.Count == 0) return null;
         double min = ok.Min(r => r.MBAtTarget);
-        return ok.Where(r => r.MBAtTarget <= min * 1.05)
-                 .OrderByDescending(r => Codecs.Video(r.Kind).Hardware)
-                 .ThenByDescending(r => Codecs.Video(r.Kind).Compat)
-                 .ThenBy(r => r.MBAtTarget)
-                 .First();
+        var best = ok.Where(r => r.MBAtTarget <= min * 1.05)
+                     .OrderByDescending(r => Codecs.Video(r.Kind).Hardware)
+                     .ThenByDescending(r => Codecs.Video(r.Kind).Compat)
+                     .ThenBy(r => r.MBAtTarget)
+                     .First();
+        // 녹화는 그래픽카드 인코더 우선: CPU 인코더가 15% 이상 작지 않으면 GPU (화질 안정 + 게임 중 CPU 부담 없음)
+        if (!Codecs.Video(best.Kind).Hardware)
+        {
+            var hw = ok.Where(r => Codecs.Video(r.Kind).Hardware).OrderBy(r => r.MBAtTarget).FirstOrDefault();
+            if (hw != null && best.MBAtTarget > hw.MBAtTarget * (1 - HardwarePreference)) best = hw;
+        }
+        return best;
     }
+
+    /// <summary>CPU 인코더를 고르려면 GPU 인코더보다 이만큼 작아야 함.</summary>
+    public const double HardwarePreference = 0.15;
+
+    /// <summary>
+    /// 자동 품질 보정의 하한: 사용자가 고른 단계보다 0.5단계 넘게 낮추지 않는다.
+    /// (정지 화면 위주로 측정하면 SSIM이 높게 나와 품질값을 과하게 낮추는 것을 막음 — 글자 번짐·뿌연 화면 방지)
+    /// </summary>
+    public static double GuardLevel(double calibrated, int userLevel) => Math.Max(calibrated, userLevel - 0.5);
 }

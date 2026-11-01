@@ -11,6 +11,19 @@ internal static class Program
         if (args.Length > 0 && args[0] == "--uitest")
             return RunUiTest(args.Length > 1 ? args[1] : Path.Combine(AppContext.BaseDirectory, "uitest.log"));
 
+        // --whatauto <log>: 현재 설정으로 자동 모드가 무엇을 쓰는지 출력 (진단용)
+        if (args.Length > 1 && args[0] == "--whatauto")
+        {
+            var s = Settings.Load();
+            var f = Ffmpeg.Resolve(s.FfmpegPath);
+            if (f != null) Codecs.Probe(f);
+            var r = s.Region;
+            int w = r.Width & ~1, h = r.Height & ~1;
+            var p = Codecs.AutoProfile(s, w, h, s.Fps);
+            double lv = Codecs.AutoLevel(s, p.Video, w, h, s.Fps);
+            File.WriteAllText(args[1], $"{w}x{h} {s.Fps}fps level {s.Level}\nauto: {p.Name}\nbasis: {Codecs.RecommendBasis(s, w, h, s.Fps)}\nvideo level: {lv:0.00}\nargs: {string.Join(' ', Codecs.VideoArgs(p.Video, lv, p.Ext, s.Fps))}\nhint: {Codecs.Hint(s, p, w, h, s.Fps)}");
+            return 0;
+        }
         if (args.Length > 1 && args[0] == "--frameshot")
         {
             Environment.SetEnvironmentVariable("MXCAM_SETTINGS_DIR", Path.Combine(Path.GetTempPath(), "mxcam_manual_settings"));
