@@ -90,6 +90,7 @@ public sealed class Settings
     public string? PcSummary { get; set; }
     public VKind? PcBest { get; set; }
 
+    [System.Text.Json.Serialization.JsonIgnore]
     public Rectangle Region
     {
         get => new(RegionX, RegionY, RegionW, RegionH);
