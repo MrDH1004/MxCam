@@ -158,13 +158,13 @@ public static class Optimizer
     /// <param name="classOverride">학습 분류를 직접 지정 (녹화 학습: "rec|해상도|fps")</param>
     /// <param name="minSpeed">이 속도(실시간 배수) 이상인 후보만 선택 (녹화는 실시간 여유 필요)</param>
     public static OptimizeDecision Decide(string ffmpeg, MediaInfo src, Settings s, int level, IProgress<string> progress, CancellationToken ct,
-        string? classOverride = null, double minSpeed = 0)
+        string? classOverride = null, double minSpeed = 0, Func<VKind, bool>? allow = null)
     {
         double target = TargetSsim(level);
         string cls = classOverride ?? Learning.ClassOf(src);
         string session = Guid.NewGuid().ToString("N")[..8];
         var history = Learning.Load().Where(r => r.Class == cls).ToList();
-        var available = AllCandidates.Where(Codecs.IsVideoAvailable).ToList();
+        var available = AllCandidates.Where(k => Codecs.IsVideoAvailable(k) && (allow == null || allow(k))).ToList();
 
         // 학습된 성적: 목표 화질을 만족한 기록들의 평균 용량비 (낮을수록 좋음)
         var learned = history.Where(r => r.Ssim >= target - 0.002)

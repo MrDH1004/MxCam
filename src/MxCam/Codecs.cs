@@ -376,7 +376,7 @@ public static class Codecs
     {
         bool heavy = HeavyLoad(w, h, fps);
         return VideoInfos
-            .Where(i => i.Kind is not (VKind.Gif or VKind.OpenH264 or VKind.DivX) && IsVideoAvailable(i.Kind))
+            .Where(i => i.Kind is not (VKind.Gif or VKind.OpenH264 or VKind.DivX) && IsVideoAvailable(i.Kind) && Recommender.RecordingCapable(i.Kind))
             .Where(i => i.Hardware || i.Speed >= (heavy ? 4 : 3))
             .OrderByDescending(i => i.Efficiency).ThenByDescending(i => i.Hardware).ThenByDescending(i => i.Compat)
             .First();
@@ -389,7 +389,7 @@ public static class Codecs
     public static Learned? LearnedFor(Settings s, int w, int h, int fps)
     {
         if (!s.AutoLearn) return null;
-        var rank = Learning.Ranking(Learning.RecClass(w, h, fps), s.Level, Recommender.RealtimeMargin);
+        var rank = Learning.Ranking(Learning.RecClass(w, h, fps), s.Level, Recommender.RealtimeMargin).Where(x => Recommender.RecordingCapable(x.Kind)).ToList();
         var best = rank.FirstOrDefault();
         if (best == null || best.Sessions < 3) return null;
         // 녹화는 그래픽카드 인코더 우선 (CPU 인코더가 15% 이상 작을 때만 CPU)

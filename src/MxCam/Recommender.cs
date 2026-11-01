@@ -174,7 +174,7 @@ public static class Recommender
             r.CalibratedLevel = lv;
             r.State = state;
         }
-        var ok = results.Where(r => Valid(r) && r.Realtime && r.State <= 0).ToList();
+        var ok = results.Where(r => Valid(r) && r.Realtime && r.State <= 0 && RecordingCapable(r.Kind)).ToList();
         if (ok.Count == 0) return null;
         double min = ok.Min(r => r.MBAtTarget);
         var best = ok.Where(r => r.MBAtTarget <= min * 1.05)
@@ -198,5 +198,11 @@ public static class Recommender
     /// 자동 품질 보정의 하한: 사용자가 고른 단계보다 0.5단계 넘게 낮추지 않는다.
     /// (정지 화면 위주로 측정하면 SSIM이 높게 나와 품질값을 과하게 낮추는 것을 막음 — 글자 번짐·뿌연 화면 방지)
     /// </summary>
-    public static double GuardLevel(double calibrated, int userLevel) => Math.Max(calibrated, userLevel - 0.5);
+    public static double GuardLevel(double calibrated, int userLevel) => Math.Max(calibrated, userLevel);
+
+    /// <summary>
+    /// 실시간 녹화에 쓰지 않는 인코더: CPU용 AV1/HEVC/VP9은 빠른 설정에서 화질이 뭉개지고(SVT-AV1 preset 10 경고)
+    /// 녹화 중 CPU를 많이 써서 프레임이 밀릴 수 있다. (파일 변환에서는 사용)
+    /// </summary>
+    public static bool RecordingCapable(VKind k) => k is not (VKind.SvtAv1 or VKind.X265 or VKind.Vp9);
 }

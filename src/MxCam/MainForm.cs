@@ -484,7 +484,7 @@ public sealed partial class MainForm : Form
         try
         {
             var info = await Task.Run(() => MediaInfo.Probe(ff, sample), cts.Token);
-            var d = await Task.Run(() => Optimizer.Decide(ff, info, _s, level, new Progress<string>(), cts.Token, cls, Recommender.RealtimeMargin), cts.Token);
+            var d = await Task.Run(() => Optimizer.Decide(ff, info, _s, level, new Progress<string>(), cts.Token, cls, Recommender.RealtimeMargin, Recommender.RecordingCapable), cts.Token);
             var best = Learning.Best(cls, level, Recommender.RealtimeMargin);
             LastLearnResult = best != null ? $"{Codecs.Video(best.Kind).Label} {best.Level:0.0}단계" : Codecs.Video(d.Kind).Label;
             if (!IsDisposed && _rec == null)
