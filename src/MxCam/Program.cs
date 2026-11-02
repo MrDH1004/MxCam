@@ -51,6 +51,23 @@ internal static class Program
             return 0;
         }
 
+        // --ffmpeginstall <log>: UI 없이 ffmpeg 자동 설치만 수행 (검증용)
+        if (args.Length > 1 && args[0] == "--ffmpeginstall")
+        {
+            using var w = new StreamWriter(args[1]);
+            try
+            {
+                var path = FfmpegInstaller.InstallAsync(new Progress<string>(_ => { })).GetAwaiter().GetResult();
+                w.WriteLine($"installed {path} usable={Ffmpeg.IsUsable(path)} resolve={Ffmpeg.Resolve(null)}");
+                return 0;
+            }
+            catch (Exception ex) when (ex is HttpRequestException or IOException or InvalidDataException or InvalidOperationException or TaskCanceledException or UnauthorizedAccessException)
+            {
+                w.WriteLine("failed: " + ex);
+                return 1;
+            }
+        }
+
         if (args.Length > 0 && args[0] == "--updatecheck")
             return UpdateCheck(args.Length > 1 ? args[1] : Path.Combine(AppContext.BaseDirectory, "update.log"));
 

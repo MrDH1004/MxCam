@@ -7,33 +7,63 @@ namespace MxCam;
 
 public static class Ffmpeg
 {
-    /// <summary>설정 경로 → 실행 파일 옆 → PATH → winget 설치 위치 순으로 ffmpeg.exe를 찾는다.</summary>
+    /// <summary>
+    /// 설정 경로 → 실행 파일 옆 → PATH → winget 설치 위치 순으로 ffmpeg.exe를 찾는다.
+    /// 너무 오래되었거나 실행되지 않는 ffmpeg(예: -hide_banner를 모르는 2013년 빌드)는 건너뛴다.
+    /// 쓸 수 있는 것이 하나도 없으면 처음 발견한 것을 돌려준다 (호출자가 오류를 표시하도록).
+    /// </summary>
     public static string? Resolve(string? configured)
     {
-        if (!string.IsNullOrWhiteSpace(configured) && File.Exists(configured)) return configured;
+        string? firstFound = null;
+        foreach (var p in Candidates(configured))
+        {
+            firstFound ??= p;
+            if (IsUsable(p)) return p;
+        }
+        return firstFound;
+    }
+
+    static IEnumerable<string> Candidates(string? configured)
+    {
+        if (!string.IsNullOrWhiteSpace(configured) && File.Exists(configured)) yield return configured;
         var local = Path.Combine(AppContext.BaseDirectory, "ffmpeg.exe");
-        if (File.Exists(local)) return local;
+        if (File.Exists(local)) yield return local;
+        if (File.Exists(FfmpegInstaller.InstalledExe)) yield return FfmpegInstaller.InstalledExe; // MxCam이 자동 설치한 것
         foreach (var dir in (Environment.GetEnvironmentVariable("PATH") ?? "").Split(';', StringSplitOptions.RemoveEmptyEntries))
         {
+            string? p = null;
             try
             {
-                var p = Path.Combine(dir.Trim(), "ffmpeg.exe");
-                if (File.Exists(p)) return p;
+                var c = Path.Combine(dir.Trim(), "ffmpeg.exe");
+                if (File.Exists(c)) p = c;
             }
-            catch { }
+            catch (ArgumentException) { }
+            if (p != null) yield return p;
         }
         var winget = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Microsoft", "WinGet", "Packages");
+        List<string> hits = new();
         if (Directory.Exists(winget))
         {
-            try
-            {
-                var hit = Directory.EnumerateFiles(winget, "ffmpeg.exe", SearchOption.AllDirectories).FirstOrDefault();
-                if (hit != null) return hit;
-            }
-            catch { }
+            try { hits = Directory.EnumerateFiles(winget, "ffmpeg.exe", SearchOption.AllDirectories).ToList(); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
         }
-        return null;
+        foreach (var h in hits) yield return h;
     }
+
+    static readonly ConcurrentDictionary<string, bool> Usable = new(StringComparer.OrdinalIgnoreCase);
+
+    public static void ForgetUsable(string exe) => Usable.TryRemove(exe, out _);
+
+    /// <summary>MxCam이 쓰는 옵션(-hide_banner, -encoders)으로 실제 실행해 본다. 결과는 경로별로 캐시.</summary>
+    public static bool IsUsable(string exe) => Usable.GetOrAdd(exe, e =>
+    {
+        try
+        {
+            var (code, output) = RunCapture(e, new[] { "-hide_banner", "-encoders" }, 15000);
+            return code == 0 && output.Contains("mpeg4", StringComparison.OrdinalIgnoreCase);
+        }
+        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException) { return false; }
+    });
 
     public static string ProbePath(string ffmpeg) => Path.Combine(Path.GetDirectoryName(ffmpeg)!, "ffprobe.exe");
 

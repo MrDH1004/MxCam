@@ -77,19 +77,71 @@ public sealed partial class MainForm : Form
             AttachToFrame(force: true);
         RegisterHotkeys();
         UpdateHint();
+        // 업데이트 확인은 ffmpeg·코덱 상태와 무관하게 수행 (코덱 쪽 문제로 업데이트까지 막히지 않게)
+        if (!TestMode && _s.AutoUpdate) _ = CheckUpdateAsync();
 
-        if (_ffmpeg == null)
+        if (_ffmpeg == null || !Ffmpeg.IsUsable(_ffmpeg))
         {
-            _lblState.Text = "ffmpeg를 찾을 수 없음 — 옵션에서 경로 지정";
+            _lblState.Text = _ffmpeg == null ? "ffmpeg를 찾을 수 없음 — 옵션에서 경로 지정" : "ffmpeg가 너무 오래됨 — 최신 버전 설치 필요";
+            // 창이 보인 뒤 설치 여부를 묻는다
+            if (!TestMode) BeginInvoke(new Action(() => _ = OfferFfmpegInstallAsync()));
             return;
         }
+        StartCodecProbe();
+    }
+
+    bool _installingFfmpeg;
+
+    /// <summary>ffmpeg가 없거나 너무 오래되었으면 확인창을 띄우고, 동의하면 최신 ffmpeg를 내려받아 설치한 뒤 코덱 탐지를 다시 한다.</summary>
+    async Task OfferFfmpegInstallAsync()
+    {
+        if (_installingFfmpeg || IsDisposed) return;
+        _installingFfmpeg = true;
+        try
+        {
+            bool missing = _ffmpeg == null;
+            string why = missing
+                ? "녹화에 필요한 ffmpeg를 찾을 수 없습니다."
+                : $"설치된 ffmpeg가 너무 오래되었거나 실행되지 않아 녹화할 수 없습니다.\n({_ffmpeg})";
+            TopMost = false;
+            var ans = MessageBox.Show(this,
+                why + "\n\n최신 ffmpeg(약 110MB)를 내려받아 자동으로 설치할까요?\n\n" +
+                $"· 설치 위치: {FfmpegInstaller.InstallDir}\n· 출처: gyan.dev (SHA256 검증)\n· 관리자 권한 필요 없음",
+                "MxCam - ffmpeg 설치", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+            TopMost = true;
+            if (ans != DialogResult.Yes)
+            {
+                _lblState.Text = missing ? "ffmpeg를 찾을 수 없음 — 옵션에서 경로 지정" : "ffmpeg가 너무 오래됨 — 녹화 버튼을 누르면 다시 설치를 안내";
+                return;
+            }
+            try
+            {
+                _ffmpeg = await FfmpegInstaller.InstallAsync(new Progress<string>(t => { if (!IsDisposed) _lblState.Text = t; }));
+            }
+            catch (Exception ex) when (ex is HttpRequestException or IOException or InvalidDataException or InvalidOperationException or TaskCanceledException or UnauthorizedAccessException)
+            {
+                if (IsDisposed) return;
+                _lblState.Text = "ffmpeg 자동 설치 실패 — 옵션에서 경로 지정";
+                TopMost = false;
+                MessageBox.Show(this, "ffmpeg 자동 설치에 실패했습니다.\n" + ex.Message + "\n\n직접 설치: winget install Gyan.FFmpeg", "MxCam", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                TopMost = true;
+                return;
+            }
+            if (IsDisposed) return;
+            StartCodecProbe();
+        }
+        finally { _installingFfmpeg = false; }
+    }
+
+    void StartCodecProbe()
+    {
+        if (_ffmpeg == null) return;
         _lblState.Text = "코덱 확인 중…";
         var ff = _ffmpeg;
         Task.Run(() => Codecs.Probe(ff)).ContinueWith(_ => BeginInvoke(() =>
         {
-            _lblState.Text = "준비";
+            _lblState.Text = Codecs.ProbeFailed ? "ffmpeg 실행 실패(너무 오래된 버전?) — 옵션에서 최신 ffmpeg 경로 지정" : "준비";
             UpdateHint();
-            if (!TestMode && _s.AutoUpdate) _ = CheckUpdateAsync();
             if (!TestMode) ApplyShellMenu();
             if (!TestMode && _ffmpeg != null)
             {
@@ -358,9 +410,10 @@ public sealed partial class MainForm : Form
     {
         _learnCts?.Cancel(); // 학습보다 녹화가 우선
         _ffmpeg ??= Ffmpeg.Resolve(_s.FfmpegPath);
-        if (_ffmpeg == null)
+        if (_ffmpeg == null || !Ffmpeg.IsUsable(_ffmpeg))
         {
-            MessageBox.Show(this, "ffmpeg.exe를 찾을 수 없습니다.\n옵션에서 ffmpeg 경로를 지정하세요.", "MxCam", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            if (TestMode) return;
+            _ = OfferFfmpegInstallAsync();
             return;
         }
         var region = _frame.CaptureRect;
@@ -709,7 +762,7 @@ public sealed partial class MainForm : Form
         {
             _s.Save();
             _ffmpeg = Ffmpeg.Resolve(_s.FfmpegPath);
-            if (_ffmpeg != null && !Codecs.Probed) Task.Run(() => Codecs.Probe(_ffmpeg)).ContinueWith(_ => BeginInvoke(UpdateHint));
+            if (_ffmpeg != null && (!Codecs.Probed || Codecs.ProbeFailed)) Task.Run(() => Codecs.Probe(_ffmpeg)).ContinueWith(_ => BeginInvoke(UpdateHint));
             RegisterHotkeys();
             UpdateTooltips();
             if (!TestMode) ApplyShellMenu();

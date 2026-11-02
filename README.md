@@ -13,7 +13,8 @@
 ### 필요한 것
 - Windows 10 2004 이상 / Windows 11 (x64)
 - [.NET 9 데스크톱 런타임](https://dotnet.microsoft.com/download/dotnet/9.0) — 없으면 첫 실행 때 설치 안내가 뜹니다
-- ffmpeg: `winget install Gyan.FFmpeg` (또는 `ffmpeg.exe`를 `MxCam.exe` 옆에 두기)
+- ffmpeg: 없거나 너무 오래된 버전이면 첫 실행 때 확인창이 뜨고, 동의하면 최신 버전을 자동 설치 (`%LOCALAPPDATA%\MxCam\ffmpeg`, SHA256 검증)
+  — 직접 설치하려면 `winget install Gyan.FFmpeg` (또는 `ffmpeg.exe`를 `MxCam.exe` 옆에 두기)
 
 ## 기능
 

@@ -204,6 +204,9 @@ public static class Codecs
 
     public static bool HasEncoder(string name) => Encoders.Contains(name);
 
+    /// <summary>탐지는 끝났지만 인코더를 하나도 못 읽음 (ffmpeg가 너무 오래되었거나 실행 실패).</summary>
+    public static bool ProbeFailed => Probed && Encoders.Count == 0;
+
     public static bool IsVideoAvailable(VKind k)
     {
         if (k == VKind.None) return true;
@@ -379,7 +382,7 @@ public static class Codecs
             .Where(i => i.Kind is not (VKind.Gif or VKind.OpenH264 or VKind.DivX) && IsVideoAvailable(i.Kind) && Recommender.RecordingCapable(i.Kind))
             .Where(i => i.Hardware || i.Speed >= (heavy ? 4 : 3))
             .OrderByDescending(i => i.Efficiency).ThenByDescending(i => i.Hardware).ThenByDescending(i => i.Compat)
-            .First();
+            .FirstOrDefault() ?? Video(VKind.X264); // ffmpeg 탐지 실패 등으로 후보가 없으면 x264 (예외로 앱이 멈추지 않게)
     }
 
 
