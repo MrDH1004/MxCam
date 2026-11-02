@@ -130,7 +130,11 @@ public sealed partial class MainForm : Form
             if (IsDisposed) return;
             StartCodecProbe();
         }
-        finally { _installingFfmpeg = false; }
+        finally
+        {
+            _installingFfmpeg = false;
+            MaybePromptUpdate(); // ffmpeg 확인창 때문에 미뤄 둔 업데이트 알림
+        }
     }
 
     void StartCodecProbe()
@@ -511,6 +515,7 @@ public sealed partial class MainForm : Form
             ShowError("MxCam - 녹화 실패", Trim(result.Message, 1500));
         }
         if (restart && result.Ok) StartRecording();
+        else MaybePromptUpdate(); // 녹화 중 미뤄 둔 업데이트 알림
     }
 
     // ───────────── 녹화 자가 학습 ─────────────
@@ -708,12 +713,47 @@ public sealed partial class MainForm : Form
                 var u = await Updater.CheckAsync();
                 if (u == null || !await Updater.DownloadAsync(u)) return;
                 _lblUpdate.Text = $"🔄 {u.Tag} 업데이트 준비됨 — 클릭하면 재시작";
+                _updateTag = u.Tag;
+                _updateNotes = u.Notes;
             }
             else _lblUpdate.Text = "🔄 새 버전 준비됨 — 클릭하면 재시작";
             _lblUpdate.ToolTipText = "지금 재시작하지 않아도 다음 실행 때 자동으로 적용됩니다.";
             _lblUpdate.Visible = true;
         }
         catch { /* 오프라인 등 → 조용히 무시 */ }
+        if (_lblUpdate.Visible && !IsDisposed)
+        {
+            _updatePromptPending = true;
+            MaybePromptUpdate();
+        }
+    }
+
+    string? _updateTag, _updateNotes;
+    bool _updatePromptPending;
+
+    /// <summary>
+    /// 업데이트 준비가 끝나면 팝업으로 알림 (실행당 한 번). 녹화 중이거나 다른 확인창(ffmpeg 설치)이 떠 있으면
+    /// 그것이 끝난 뒤에 띄운다. "나중에"를 고르면 상태 줄 링크로 남고 다음 실행 때 자동 적용.
+    /// </summary>
+    void MaybePromptUpdate()
+    {
+        if (!_updatePromptPending || IsDisposed || TestMode) return;
+        if (_rec != null || _stopping || _installingFfmpeg) return; // 끝난 뒤 다시 호출됨
+        if (!Updater.HasPending) { _updatePromptPending = false; return; }
+        _updatePromptPending = false;
+
+        string ver = _updateTag != null ? $"새 버전 {_updateTag}" : "새 버전";
+        // 마크다운 굵게 표시·자동 생성된 "Full Changelog" 링크 줄은 빼고 보여 준다
+        string body = string.Join("\n", (_updateNotes ?? "").Replace("\r", "").Split('\n')
+            .Where(l => !l.Contains("Full Changelog", StringComparison.OrdinalIgnoreCase))
+            .Select(l => l.Replace("**", ""))).Trim();
+        string notes = body.Length == 0 ? "" : "\n\n변경 내용:\n" + Trim(body, 600);
+        TopMost = false;
+        var ans = MessageBox.Show(this,
+            $"{ver}이(가) 준비되었습니다. (현재 {AppInfo.VersionText})" + notes + "\n\n지금 재시작해서 업데이트할까요?\n[아니요]를 누르면 다음 실행 때 자동으로 적용됩니다.",
+            "MxCam - 업데이트", MessageBoxButtons.YesNo, MessageBoxIcon.Information);
+        TopMost = true;
+        if (ans == DialogResult.Yes) RestartForUpdate();
     }
 
     void RestartForUpdate()
